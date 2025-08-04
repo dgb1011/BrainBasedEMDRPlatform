@@ -1,0 +1,351 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { insertConsultationSessionSchema, insertVideoSessionSchema } from "@shared/schema";
+import { randomUUID } from "crypto";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user is a student or consultant
+      const student = await storage.getStudentByUserId(userId);
+      const consultant = await storage.getConsultantByUserId(userId);
+
+      res.json({
+        ...user,
+        userType: student ? 'student' : consultant ? 'consultant' : 'admin',
+        profile: student || consultant || null
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Student routes
+  app.get('/api/students/dashboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const student = await storage.getStudentByUserId(userId);
+      
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const upcomingSessions = await storage.getUpcomingSessionsForStudent(student.id);
+      const allSessions = await storage.getSessionsForStudent(student.id);
+      
+      // Get consultant details for sessions
+      const sessionsWithConsultants = await Promise.all(
+        upcomingSessions.map(async (session) => {
+          const consultant = await storage.getConsultant(session.consultantId);
+          const consultantUser = consultant ? await storage.getUser(consultant.userId) : null;
+          return {
+            ...session,
+            consultant: consultant ? {
+              ...consultant,
+              user: consultantUser
+            } : null
+          };
+        })
+      );
+
+      // Calculate progress
+      const completedHours = parseFloat(student.totalVerifiedHours || '0');
+      const completionPercentage = Math.min((completedHours / 40) * 100, 100);
+      const remainingHours = Math.max(40 - completedHours, 0);
+
+      res.json({
+        student,
+        upcomingSessions: sessionsWithConsultants,
+        progress: {
+          completedHours,
+          totalRequired: 40,
+          completionPercentage,
+          remainingHours,
+          sessionsThisMonth: allSessions.filter(s => {
+            const sessionDate = new Date(s.scheduledStart);
+            const now = new Date();
+            return sessionDate.getMonth() === now.getMonth() && 
+                   sessionDate.getFullYear() === now.getFullYear() &&
+                   s.status === 'completed';
+          }).length
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching student dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data" });
+    }
+  });
+
+  // Consultant routes
+  app.get('/api/consultants', async (req, res) => {
+    try {
+      const consultants = await storage.getAllConsultants();
+      const consultantsWithUsers = await Promise.all(
+        consultants.map(async (consultant) => {
+          const user = await storage.getUser(consultant.userId);
+          return {
+            ...consultant,
+            user
+          };
+        })
+      );
+      res.json(consultantsWithUsers);
+    } catch (error) {
+      console.error("Error fetching consultants:", error);
+      res.status(500).json({ message: "Failed to fetch consultants" });
+    }
+  });
+
+  app.get('/api/consultants/:id/availability', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const availability = await storage.getConsultantAvailability(id);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error fetching availability:", error);
+      res.status(500).json({ message: "Failed to fetch availability" });
+    }
+  });
+
+  // Session routes
+  app.post('/api/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const student = await storage.getStudentByUserId(userId);
+      
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const sessionData = insertConsultationSessionSchema.parse({
+        ...req.body,
+        studentId: student.id
+      });
+
+      // Create video session
+      const videoSession = await storage.createVideoSession({
+        roomId: `room_${randomUUID()}`,
+        recordingEnabled: true,
+        videoQuality: '720p',
+        technicalIssues: [],
+        sessionMetadata: {}
+      });
+
+      // Create consultation session
+      const session = await storage.createConsultationSession({
+        ...sessionData,
+        videoSessionId: videoSession.id
+      });
+
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error creating session:", error);
+      res.status(500).json({ message: "Failed to create session" });
+    }
+  });
+
+  app.get('/api/sessions/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const session = await storage.getConsultationSession(id);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Get related data
+      const student = await storage.getStudent(session.studentId);
+      const consultant = await storage.getConsultant(session.consultantId);
+      const videoSession = session.videoSessionId ? 
+        await storage.getVideoSession(session.videoSessionId) : null;
+
+      const studentUser = student ? await storage.getUser(student.userId) : null;
+      const consultantUser = consultant ? await storage.getUser(consultant.userId) : null;
+
+      res.json({
+        ...session,
+        student: student ? { ...student, user: studentUser } : null,
+        consultant: consultant ? { ...consultant, user: consultantUser } : null,
+        videoSession
+      });
+    } catch (error) {
+      console.error("Error fetching session:", error);
+      res.status(500).json({ message: "Failed to fetch session" });
+    }
+  });
+
+  app.patch('/api/sessions/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const session = await storage.updateConsultationSession(id, updates);
+      res.json(session);
+    } catch (error) {
+      console.error("Error updating session:", error);
+      res.status(500).json({ message: "Failed to update session" });
+    }
+  });
+
+  // Video session routes
+  app.get('/api/video-sessions/:roomId', isAuthenticated, async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const videoSessions = await Promise.all(
+        Array.from((storage as any).videoSessions.values())
+      );
+      const videoSession = videoSessions.find(vs => vs.roomId === roomId);
+      
+      if (!videoSession) {
+        return res.status(404).json({ message: "Video session not found" });
+      }
+
+      res.json(videoSession);
+    } catch (error) {
+      console.error("Error fetching video session:", error);
+      res.status(500).json({ message: "Failed to fetch video session" });
+    }
+  });
+
+  // Admin routes
+  app.get('/api/admin/dashboard', isAuthenticated, async (req, res) => {
+    try {
+      const students = await storage.getAllStudents();
+      const consultants = await storage.getAllConsultants();
+      
+      // Calculate stats
+      const activeStudents = students.filter(s => s.certificationStatus === 'in_progress').length;
+      const completedCertifications = students.filter(s => s.certificationStatus === 'completed').length;
+      
+      // Get this week's sessions
+      const now = new Date();
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      const allSessions = Array.from((storage as any).consultationSessions.values());
+      const sessionsThisWeek = allSessions.filter((session: any) => {
+        const sessionDate = new Date(session.scheduledStart);
+        return sessionDate >= weekStart && sessionDate < weekEnd;
+      }).length;
+
+      res.json({
+        activeStudents,
+        consultants: consultants.length,
+        sessionsThisWeek,
+        completedCertifications,
+        systemUptime: 99.8
+      });
+    } catch (error) {
+      console.error("Error fetching admin dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch admin dashboard" });
+    }
+  });
+
+  // Mock Kajabi webhook
+  app.post('/api/webhooks/kajabi', async (req, res) => {
+    try {
+      const { user_id, email, first_name, last_name, course_completed } = req.body;
+      
+      if (course_completed) {
+        // Create user if not exists
+        const user = await storage.upsertUser({
+          id: `kajabi_${user_id}`,
+          email,
+          firstName: first_name,
+          lastName: last_name,
+          profileImageUrl: null
+        });
+
+        // Create student profile
+        await storage.createStudent({
+          userId: user.id,
+          kajabiUserId: user_id,
+          phone: null,
+          timezone: 'UTC',
+          courseCompletionDate: new Date(),
+          totalVerifiedHours: '0',
+          certificationStatus: 'in_progress',
+          preferredSessionLength: 60,
+          consultationPreferences: {}
+        });
+
+        res.json({ message: "Student created successfully" });
+      } else {
+        res.json({ message: "Course not completed yet" });
+      }
+    } catch (error) {
+      console.error("Error processing Kajabi webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  const httpServer = createServer(app);
+
+  // WebSocket server for real-time communication
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  wss.on('connection', (ws: WebSocket, req) => {
+    console.log('WebSocket connection established');
+
+    ws.on('message', (message: string) => {
+      try {
+        const data = JSON.parse(message);
+        
+        // Handle different message types
+        switch (data.type) {
+          case 'join_video_session':
+            // Handle joining video session
+            ws.send(JSON.stringify({
+              type: 'video_session_joined',
+              roomId: data.roomId,
+              participantId: randomUUID()
+            }));
+            break;
+            
+          case 'webrtc_signal':
+            // Relay WebRTC signaling messages
+            wss.clients.forEach((client) => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'webrtc_signal',
+                  signal: data.signal,
+                  from: data.from,
+                  to: data.to
+                }));
+              }
+            });
+            break;
+            
+          default:
+            console.log('Unknown message type:', data.type);
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    });
+
+    ws.on('close', () => {
+      console.log('WebSocket connection closed');
+    });
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+    });
+  });
+
+  return httpServer;
+}
