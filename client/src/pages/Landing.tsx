@@ -44,7 +44,7 @@ export default function Landing() {
               <h1 className="text-xl font-bold text-primary">BrainBased EMDR</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Button onClick={handleLogin} className="bg-primary hover:bg-blue-700 text-white">
+              <Button onClick={handleGetStarted} className="bg-primary hover:bg-blue-700 text-white">
                 Login
               </Button>
             </div>
@@ -230,23 +230,25 @@ export default function Landing() {
             their EMDR certification through our platform.
           </p>
            {showRoleSelector ? (
-            <div className="flex flex-col items-center justify-center">
-              <Select onValueChange={setSelectedRole}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select a role" />
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <h3 className="text-lg font-semibold text-text-primary">Choose your role to continue:</h3>
+              <Select onValueChange={setSelectedRole} defaultValue={selectedRole}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="consultant">Consultant</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="student">Student - Complete EMDR Certification</SelectItem>
+                  <SelectItem value="consultant">Consultant - Provide EMDR Consultation</SelectItem>
+                  <SelectItem value="admin">Admin - System Administration</SelectItem>
                 </SelectContent>
               </Select>
               <Button 
                 size="lg" 
                 onClick={handleLogin}
-                className="bg-primary hover:bg-blue-700 text-white px-8 py-3 mt-4"
+                disabled={!selectedRole}
+                className="bg-primary hover:bg-blue-700 text-white px-8 py-3 disabled:opacity-50"
               >
-                Continue as {selectedRole}
+                Continue as {selectedRole ? selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1) : 'User'}
               </Button>
             </div>
           ) : (
