@@ -201,39 +201,6 @@ export async function seedDatabase() {
     }
   });
 
-  // Create consultant availability
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dayAfter = new Date(today);
-  dayAfter.setDate(dayAfter.getDate() + 2);
-
-  await storage.createAvailability({
-    consultantId: consultant1.id,
-    dayOfWeek: tomorrow.getDay(),
-    startTime: '09:00',
-    endTime: '17:00',
-    isRecurring: true,
-    specificDate: null,
-    isBooked: false,
-    maxSessions: 8,
-    currentSessions: 2
-  });
-
-  await storage.createAvailability({
-    consultantId: consultant2.id,
-    dayOfWeek: dayAfter.getDay(),
-    startTime: '10:00',
-    endTime: '16:00',
-    isRecurring: true,
-    specificDate: null,
-    isBooked: false,
-    maxSessions: 6,
-    currentSessions: 1
-  });
-
   console.log('Database seeded successfully!');
-  console.log(`Created ${await storage.getAllStudents().then(s => s.length)} students`);
-  console.log(`Created ${await storage.getAllConsultants().then(c => c.length)} consultants`);
-  console.log(`Created ${await storage.getAllConsultationSessions().then(s => s.length)} sessions`);
+  console.log('Sample data created for development environment');
 }

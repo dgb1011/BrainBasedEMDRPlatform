@@ -1,145 +1,122 @@
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Video, Calendar, Clock, User, ChevronRight } from 'lucide-react';
+import { 
+  Video, 
+  Calendar, 
+  Clock, 
+  User,
+  Edit
+} from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SessionCardProps {
   session: {
     id: string;
-    scheduledStart: string;
-    scheduledEnd: string;
+    consultantName: string;
+    scheduledStart: Date;
+    scheduledEnd: Date;
     status: string;
-    consultant?: {
-      user?: {
-        firstName?: string;
-        lastName?: string;
-        profileImageUrl?: string;
-      };
-      specializations?: string[];
-    };
+    sessionType?: string;
   };
-  onJoinSession: (sessionId: string) => void;
-  onReschedule?: (sessionId: string) => void;
+  onJoin: (sessionId: string) => void;
+  onReschedule: (sessionId: string) => void;
 }
 
-export default function SessionCard({ session, onJoinSession, onReschedule }: SessionCardProps) {
+export default function SessionCard({ session, onJoin, onReschedule }: SessionCardProps) {
+  const isUpcoming = new Date(session.scheduledStart) > new Date();
+  const isToday = format(new Date(session.scheduledStart), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  const canJoin = isToday && isUpcoming && session.status === 'scheduled';
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800';
-      case 'in_progress':
-        return 'bg-green-100 text-green-800';
       case 'completed':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-green-100 text-green-800';
       case 'cancelled':
         return 'bg-red-100 text-red-800';
+      case 'in_progress':
+        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'Scheduled';
-      case 'in_progress':
-        return 'In Progress';
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
+  const getSessionTypeColor = (type?: string) => {
+    switch (type) {
+      case 'consultation':
+        return 'bg-purple-100 text-purple-800';
+      case 'practice':
+        return 'bg-orange-100 text-orange-800';
+      case 'evaluation':
+        return 'bg-teal-100 text-teal-800';
       default:
-        return status;
+        return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  const canJoin = (status: string, scheduledStart: string) => {
-    if (status !== 'scheduled') return false;
-    const sessionTime = new Date(scheduledStart);
-    const now = new Date();
-    const timeDiff = sessionTime.getTime() - now.getTime();
-    return timeDiff <= 15 * 60 * 1000 && timeDiff >= -60 * 60 * 1000; // 15 min before to 1 hour after
-  };
-
-  const isUpcoming = (status: string, scheduledStart: string) => {
-    return status === 'scheduled' && new Date(scheduledStart) > new Date();
   };
 
   return (
-    <div className="flex items-center justify-between p-4 border rounded-lg bg-white hover:shadow-md transition-shadow">
-      <div className="flex items-center space-x-4">
-        <div className="flex-shrink-0">
-          <img
-            src={session.consultant?.user?.profileImageUrl || '/default-avatar.png'}
-            alt={`${session.consultant?.user?.firstName} ${session.consultant?.user?.lastName}`}
-            className="w-12 h-12 rounded-full object-cover"
-          />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 mb-1">
-            <h4 className="text-lg font-semibold text-text-primary truncate">
-              {session.consultant?.user?.firstName} {session.consultant?.user?.lastName}
-            </h4>
-            <Badge className={getStatusColor(session.status)}>
-              {getStatusText(session.status)}
-            </Badge>
-          </div>
-          
-          <div className="flex items-center space-x-4 text-sm text-text-secondary">
-            <div className="flex items-center">
-              <Calendar className="h-4 w-4 mr-1" />
-              {format(new Date(session.scheduledStart), 'MMM dd, yyyy')}
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className={getStatusColor(session.status)}>
+                {session.status.replace('_', ' ').toUpperCase()}
+              </Badge>
+              {session.sessionType && (
+                <Badge variant="outline" className={getSessionTypeColor(session.sessionType)}>
+                  {session.sessionType.toUpperCase()}
+                </Badge>
+              )}
             </div>
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-1" />
-              {format(new Date(session.scheduledStart), 'h:mm a')} - {format(new Date(session.scheduledEnd), 'h:mm a')}
-            </div>
-          </div>
-          
-          {session.consultant?.specializations && session.consultant.specializations.length > 0 && (
-            <div className="mt-2">
-              <div className="flex flex-wrap gap-1">
-                {session.consultant.specializations.slice(0, 2).map((spec, index) => (
-                  <span 
-                    key={index}
-                    className="inline-block px-2 py-1 text-xs bg-gray-100 text-text-secondary rounded"
-                  >
-                    {spec}
-                  </span>
-                ))}
+
+            <div className="space-y-2">
+              <div className="flex items-center text-sm text-gray-600">
+                <User className="h-4 w-4 mr-2" />
+                <span className="font-medium">{session.consultantName}</span>
+              </div>
+
+              <div className="flex items-center text-sm text-gray-600">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span>{format(new Date(session.scheduledStart), 'EEEE, MMMM d, yyyy')}</span>
+              </div>
+
+              <div className="flex items-center text-sm text-gray-600">
+                <Clock className="h-4 w-4 mr-2" />
+                <span>
+                  {format(new Date(session.scheduledStart), 'h:mm a')} - {format(new Date(session.scheduledEnd), 'h:mm a')}
+                </span>
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="flex flex-col gap-2 ml-4">
+            {canJoin && (
+              <Button 
+                onClick={() => onJoin(session.id)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+              >
+                <Video className="h-4 w-4 mr-2" />
+                Join
+              </Button>
+            )}
+            
+            {isUpcoming && session.status === 'scheduled' && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => onReschedule(session.id)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Reschedule
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-      
-      <div className="flex items-center space-x-2 ml-4">
-        {canJoin(session.status, session.scheduledStart) && (
-          <Button 
-            onClick={() => onJoinSession(session.id)}
-            className="bg-secondary hover:bg-green-700 text-white"
-          >
-            <Video className="h-4 w-4 mr-2" />
-            Join Session
-          </Button>
-        )}
-        
-        {isUpcoming(session.status, session.scheduledStart) && !canJoin(session.status, session.scheduledStart) && onReschedule && (
-          <Button 
-            variant="outline" 
-            onClick={() => onReschedule(session.id)}
-          >
-            Reschedule
-          </Button>
-        )}
-        
-        {session.status === 'completed' && (
-          <Button variant="ghost" size="sm">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

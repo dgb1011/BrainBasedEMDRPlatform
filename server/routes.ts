@@ -45,13 +45,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (role === 'consultant') {
           consultant = await storage.createConsultant({
             userId: userId,
-            specialty: 'General EMDR',
-            hourlyRate: '150',
-            timeZone: 'UTC',
-            availableHours: [],
+            licenseNumber: 'TEMP-' + userId.slice(0, 8),
+            specializations: ['General EMDR'],
+            hourlyRate: '150.00',
+            isActive: true,
+            bio: 'New consultant profile',
+            yearsExperience: 5,
             totalHoursCompleted: '0',
-            certificationExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
-            isActive: true
+            averageRating: '5.0'
           });
           userType = 'consultant';
         } else if (role === 'admin') {
@@ -77,54 +78,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Student routes
+  // Student dashboard route
   app.get('/api/students/dashboard', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const student = await storage.getStudentByUserId(userId);
       
+      // Get or create student profile
+      let student = await storage.getStudentByUserId(userId);
       if (!student) {
-        return res.status(404).json({ message: "Student not found" });
+        student = await storage.createStudent({
+          userId,
+          kajabiUserId: null,
+          phone: null,
+          timezone: 'UTC',
+          courseCompletionDate: new Date(),
+          totalVerifiedHours: '0',
+          certificationStatus: 'in_progress',
+          preferredSessionLength: 60,
+          consultationPreferences: {}
+        });
       }
 
       const upcomingSessions = await storage.getUpcomingSessionsForStudent(student.id);
       const allSessions = await storage.getSessionsForStudent(student.id);
       
-      // Get consultant details for sessions
+      const totalHours = parseFloat(student.totalVerifiedHours || '0');
+      const progress = Math.min((totalHours / 40) * 100, 100);
+
+      // Get session data with consultant info
       const sessionsWithConsultants = await Promise.all(
-        upcomingSessions.map(async (session) => {
+        upcomingSessions.slice(0, 3).map(async (session) => {
           const consultant = await storage.getConsultant(session.consultantId);
           const consultantUser = consultant ? await storage.getUser(consultant.userId) : null;
           return {
             ...session,
-            consultant: consultant ? {
-              ...consultant,
-              user: consultantUser
-            } : null
+            consultantName: consultantUser ? `${consultantUser.firstName} ${consultantUser.lastName}` : 'Unknown Consultant'
           };
         })
       );
-
-      // Calculate progress
-      const completedHours = parseFloat(student.totalVerifiedHours || '0');
-      const completionPercentage = Math.min((completedHours / 40) * 100, 100);
-      const remainingHours = Math.max(40 - completedHours, 0);
 
       res.json({
         student,
         upcomingSessions: sessionsWithConsultants,
         progress: {
-          completedHours,
-          totalRequired: 40,
-          completionPercentage,
-          remainingHours,
-          sessionsThisMonth: allSessions.filter(s => {
-            const sessionDate = new Date(s.scheduledStart);
-            const now = new Date();
-            return sessionDate.getMonth() === now.getMonth() && 
-                   sessionDate.getFullYear() === now.getFullYear() &&
-                   s.status === 'completed';
-          }).length
+          totalHours,
+          percentage: progress,
+          remainingHours: Math.max(40 - totalHours, 0),
+          completedSessions: allSessions.filter(s => s.status === 'completed').length
         }
       });
     } catch (error) {
@@ -132,6 +132,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch dashboard data" });
     }
   });
+
+
 
   // Consultant routes
   app.get('/api/consultants/dashboard', isAuthenticated, async (req: any, res) => {

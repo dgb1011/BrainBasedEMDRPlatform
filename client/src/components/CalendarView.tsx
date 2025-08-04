@@ -1,191 +1,170 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar,
+  Clock
+} from 'lucide-react';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
+
+interface AvailableSlot {
+  time: string;
+  consultant: string;
+  consultantId: string;
+  available: boolean;
+}
 
 interface CalendarViewProps {
   selectedDate?: Date;
-  onDateSelect?: (date: Date) => void;
-  availableSlots?: { [key: string]: Array<{ time: string; consultant: string; consultantId: string }> };
-  onSlotSelect?: (date: Date, slot: { time: string; consultant: string; consultantId: string }) => void;
+  onDateSelect: (date: Date) => void;
+  onSlotSelect: (date: Date, slot: AvailableSlot) => void;
+  availableSlots: Record<string, AvailableSlot[]>;
 }
 
 export default function CalendarView({ 
   selectedDate, 
   onDateSelect, 
-  availableSlots = {},
-  onSlotSelect 
+  onSlotSelect, 
+  availableSlots 
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedConsultant, setSelectedConsultant] = useState<string>('all');
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Pad the calendar to show full weeks
-  const firstDayOfWeek = monthStart.getDay();
-  const lastDayOfWeek = monthEnd.getDay();
-  
-  const paddedDays = [
-    ...Array(firstDayOfWeek).fill(null),
-    ...monthDays,
-    ...Array(6 - lastDayOfWeek).fill(null)
-  ];
-
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const handleDateClick = (date: Date) => {
-    onDateSelect?.(date);
+  const previousMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
   };
 
-  const handleSlotClick = (date: Date, slot: { time: string; consultant: string; consultantId: string }) => {
-    onSlotSelect?.(date, slot);
+  const nextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
   };
 
-  const getAvailableSlotsForDate = (date: Date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const slots = availableSlots[dateKey] || [];
-    
-    if (selectedConsultant === 'all') {
-      return slots;
-    }
-    
-    return slots.filter(slot => slot.consultantId === selectedConsultant);
+  const getDateKey = (date: Date) => {
+    return format(date, 'yyyy-MM-dd');
   };
 
   const hasAvailableSlots = (date: Date) => {
-    return getAvailableSlotsForDate(date).length > 0;
+    const dateKey = getDateKey(date);
+    const slots = availableSlots[dateKey];
+    return slots && slots.some(slot => slot.available);
   };
 
-  const mockAvailableSlots = {
-    [format(new Date(2024, 0, 15), 'yyyy-MM-dd')]: [
-      { time: '9:00 AM', consultant: 'Dr. Chen', consultantId: 'consultant-1' },
-      { time: '11:00 AM', consultant: 'Dr. Torres', consultantId: 'consultant-2' },
-      { time: '2:00 PM', consultant: 'Dr. Chen', consultantId: 'consultant-1' },
-      { time: '4:30 PM', consultant: 'Dr. Kim', consultantId: 'consultant-3' },
-    ],
-    [format(new Date(2024, 0, 18), 'yyyy-MM-dd')]: [
-      { time: '10:00 AM', consultant: 'Dr. Torres', consultantId: 'consultant-2' },
-      { time: '3:00 PM', consultant: 'Dr. Kim', consultantId: 'consultant-3' },
-    ],
-    [format(new Date(2024, 0, 22), 'yyyy-MM-dd')]: [
-      { time: '9:30 AM', consultant: 'Dr. Chen', consultantId: 'consultant-1' },
-      { time: '1:00 PM', consultant: 'Dr. Torres', consultantId: 'consultant-2' },
-    ],
+  const getAvailableSlotsForDate = (date: Date) => {
+    const dateKey = getDateKey(date);
+    return availableSlots[dateKey] || [];
   };
-
-  // Use mock data if no real data provided
-  const effectiveSlots = Object.keys(availableSlots).length > 0 ? availableSlots : mockAvailableSlots;
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Schedule New Session</CardTitle>
-          <div className="flex items-center space-x-4">
-            <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Consultants" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Consultants</SelectItem>
-                <SelectItem value="consultant-1">Dr. Emily Chen</SelectItem>
-                <SelectItem value="consultant-2">Dr. Michael Torres</SelectItem>
-                <SelectItem value="consultant-3">Dr. Sarah Kim</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="font-medium min-w-32 text-center">
-                {format(currentMonth, 'MMMM yyyy')}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Calendar className="h-5 w-5 mr-2 text-primary" />
+            Schedule Session
           </div>
-        </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={previousMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[120px] text-center">
+              {format(currentMonth, 'MMMM yyyy')}
+            </span>
+            <Button variant="outline" size="sm" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardTitle>
       </CardHeader>
-      
-      <CardContent>
+      <CardContent className="space-y-4">
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {/* Week day headers */}
-          {weekDays.map(day => (
-            <div key={day} className="text-center text-sm font-medium text-text-secondary py-2">
+        <div className="grid grid-cols-7 gap-1 text-center text-sm">
+          {/* Day headers */}
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="p-2 font-medium text-gray-500">
               {day}
             </div>
           ))}
           
           {/* Calendar days */}
-          {paddedDays.map((date, index) => {
-            if (!date) {
-              return <div key={index} className="h-10" />;
-            }
-            
+          {daysInMonth.map(date => {
             const isCurrentMonth = isSameMonth(date, currentMonth);
+            const isSelected = selectedDate && isSameDay(date, selectedDate);
             const isTodayDate = isToday(date);
-            const isSelected = selectedDate && format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
             const hasSlots = hasAvailableSlots(date);
             
             return (
               <button
-                key={index}
-                onClick={() => handleDateClick(date)}
+                key={date.toString()}
+                onClick={() => onDateSelect(date)}
                 className={`
-                  h-10 text-sm rounded transition-colors relative
-                  ${!isCurrentMonth ? 'text-text-secondary opacity-50' : 'text-text-primary'}
-                  ${isTodayDate ? 'bg-primary text-white font-semibold' : ''}
-                  ${isSelected && !isTodayDate ? 'bg-blue-100 text-primary' : ''}
-                  ${hasSlots && !isTodayDate && !isSelected ? 'hover:bg-blue-50' : ''}
-                  ${!hasSlots && !isTodayDate ? 'hover:bg-gray-50' : ''}
+                  p-2 text-sm rounded-lg transition-colors relative
+                  ${!isCurrentMonth ? 'text-gray-300' : ''}
+                  ${isSelected ? 'bg-blue-600 text-white' : ''}
+                  ${isTodayDate && !isSelected ? 'bg-blue-100 text-blue-600 font-medium' : ''}
+                  ${hasSlots && !isSelected ? 'bg-green-50 text-green-700 hover:bg-green-100' : ''}
+                  ${!hasSlots && !isSelected && !isTodayDate ? 'hover:bg-gray-100' : ''}
                 `}
               >
                 {format(date, 'd')}
-                {hasSlots && !isTodayDate && (
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-accent rounded-full"></div>
+                {hasSlots && (
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full"></div>
                 )}
               </button>
             );
           })}
         </div>
 
-        {/* Available Time Slots */}
+        {/* Available slots for selected date */}
         {selectedDate && (
-          <div className="border-t pt-6">
-            <h4 className="text-sm font-semibold text-text-primary mb-4">
-              Available Times - {format(selectedDate, 'MMMM do, yyyy')}
+          <div className="border-t pt-4">
+            <h4 className="font-medium text-gray-900 mb-3">
+              Available times for {format(selectedDate, 'EEEE, MMMM d')}
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {getAvailableSlotsForDate(selectedDate).map((slot, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="p-3 border-primary text-primary hover:bg-blue-50 transition-colors text-sm h-auto flex flex-col"
-                  onClick={() => handleSlotClick(selectedDate, slot)}
-                >
-                  <span className="font-medium">{slot.time}</span>
-                  <span className="text-xs text-text-secondary">{slot.consultant}</span>
-                </Button>
-              ))}
-              
-              {getAvailableSlotsForDate(selectedDate).length === 0 && (
-                <div className="col-span-full text-center text-text-secondary py-8">
-                  No available time slots for this date
+            
+            <div className="space-y-2">
+              {getAvailableSlotsForDate(selectedDate).length > 0 ? (
+                getAvailableSlotsForDate(selectedDate).map((slot, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <div className="font-medium text-sm">{slot.time}</div>
+                        <div className="text-xs text-gray-500">{slot.consultant}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Badge 
+                        variant={slot.available ? "default" : "secondary"}
+                        className={slot.available ? "bg-green-600" : ""}
+                      >
+                        {slot.available ? 'Available' : 'Booked'}
+                      </Badge>
+                      
+                      {slot.available && (
+                        <Button
+                          size="sm"
+                          onClick={() => onSlotSelect(selectedDate, slot)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Book
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No available slots for this date</p>
                 </div>
               )}
             </div>

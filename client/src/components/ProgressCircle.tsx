@@ -1,59 +1,60 @@
-import { cn } from '@/lib/utils';
-
 interface ProgressCircleProps {
-  progress: number;
+  percentage: number;
   size?: number;
   strokeWidth?: number;
-  children?: React.ReactNode;
-  className?: string;
+  color?: string;
+  backgroundColor?: string;
+  showText?: boolean;
 }
 
-export default function ProgressCircle({ 
-  progress, 
-  size = 120, 
-  strokeWidth = 8, 
-  children, 
-  className 
+export default function ProgressCircle({
+  percentage,
+  size = 80,
+  strokeWidth = 8,
+  color = '#3B82F6',
+  backgroundColor = '#E5E7EB',
+  showText = true
 }: ProgressCircleProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const strokeDasharray = `${circumference} ${circumference}`;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
+    <div className="relative" style={{ width: size, height: size }}>
       <svg
+        className="transform -rotate-90"
         width={size}
         height={size}
-        className="transform -rotate-90"
       >
         {/* Background circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="currentColor"
+          stroke={backgroundColor}
           strokeWidth={strokeWidth}
-          fill="none"
-          className="text-gray-200"
+          fill="transparent"
         />
         {/* Progress circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="currentColor"
+          stroke={color}
           strokeWidth={strokeWidth}
-          fill="none"
+          fill="transparent"
           strokeDasharray={strokeDasharray}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className="text-primary transition-all duration-500 ease-in-out"
+          className="transition-all duration-300 ease-in-out"
         />
       </svg>
-      {children && (
+      {showText && (
         <div className="absolute inset-0 flex items-center justify-center">
-          {children}
+          <span className="text-sm font-semibold text-gray-700">
+            {Math.round(percentage)}%
+          </span>
         </div>
       )}
     </div>

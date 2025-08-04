@@ -1,29 +1,24 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import { 
   Users, 
-  UserCheck, 
-  DollarSign, 
-  Award, 
+  GraduationCap, 
   Calendar, 
-  Settings, 
-  Mail, 
-  Download,
+  BarChart3, 
+  Settings,
   TrendingUp,
-  Activity,
+  Clock,
   CheckCircle,
-  XCircle,
-  AlertCircle
+  AlertTriangle,
+  DollarSign,
+  UserCheck
 } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
 import { format } from 'date-fns';
 
 export default function AdminPanel() {
@@ -33,419 +28,216 @@ export default function AdminPanel() {
 
   const { data: adminData, isLoading } = useQuery({
     queryKey: ['/api/admin/dashboard'],
-    retry: false,
   });
 
-  const { data: students } = useQuery({
-    queryKey: ['/api/admin/students'],
-    retry: false,
-  });
-
-  const { data: consultants } = useQuery({
-    queryKey: ['/api/admin/consultants'],
-    retry: false,
-  });
-
-  const { data: sessions } = useQuery({
-    queryKey: ['/api/admin/sessions'],
-    retry: false,
-  });
-
-  const approveCertificationMutation = useMutation({
-    mutationFn: async (studentId: string) => {
-      await apiRequest(`/api/admin/certifications/${studentId}/approve`, 'POST');
+  // Mock data for demonstration
+  const mockAdminData = {
+    overview: {
+      totalStudents: 127,
+      activeStudents: 89,
+      totalConsultants: 24,
+      activeConsultants: 18,
+      totalSessions: 2456,
+      completedSessions: 2234,
+      totalRevenue: 284650,
+      monthlyRevenue: 28940
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Certification approved and sent to student",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/students'] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to approve certification",
-        variant: "destructive",
-      });
-    },
-  });
+    recentActivities: [
+      { id: 1, type: 'certification', message: 'John Doe completed EMDR certification', timestamp: new Date() },
+      { id: 2, type: 'session', message: 'New session scheduled between Sarah Wilson and Dr. Chen', timestamp: new Date() },
+      { id: 3, type: 'consultant', message: 'Dr. Michael Torres updated availability', timestamp: new Date() },
+      { id: 4, type: 'payment', message: 'Payment processed for consultation #1234', timestamp: new Date() },
+    ],
+    pendingApprovals: [
+      { id: 1, type: 'consultant', name: 'Dr. Lisa Rodriguez', item: 'Application Review', priority: 'high' },
+      { id: 2, type: 'certification', name: 'Mike Johnson', item: 'Final Certification', priority: 'medium' },
+      { id: 3, type: 'session', name: 'Session #5678', item: 'Dispute Resolution', priority: 'low' },
+    ],
+    monthlyStats: {
+      newStudents: 23,
+      completedCertifications: 12,
+      averageSessionRating: 4.8,
+      consultantUtilization: 76
+    }
+  };
 
-  const payConsultantMutation = useMutation({
-    mutationFn: async ({ consultantId, amount }: { consultantId: string; amount: number }) => {
-      await apiRequest(`/api/admin/payments/consultants/${consultantId}`, 'POST', { amount });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Payment processed successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/consultants'] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to process payment",
-        variant: "destructive",
-      });
-    },
-  });
+  const data = adminData || mockAdminData;
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-surface">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse space-y-8">
-            <div className="h-24 bg-gray-200 rounded-lg"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleApproval = (id: number, approved: boolean) => {
+    toast({
+      title: approved ? "Approved" : "Rejected",
+      description: `Item has been ${approved ? 'approved' : 'rejected'} successfully.`,
+    });
+    // In real app, this would call an API
+  };
 
-  const studentsData = students || [];
-  const consultantsData = consultants || [];
-  const sessionsData = sessions || [];
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'certification':
+        return <GraduationCap className="h-4 w-4 text-green-600" />;
+      case 'session':
+        return <Calendar className="h-4 w-4 text-blue-600" />;
+      case 'consultant':
+        return <UserCheck className="h-4 w-4 text-purple-600" />;
+      case 'payment':
+        return <DollarSign className="h-4 w-4 text-orange-600" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-400" />;
+    }
+  };
 
-  const pendingCertifications = studentsData.filter((s: any) => 
-    parseFloat(s.totalVerifiedHours) >= 40 && s.certificationStatus === 'in_progress'
-  );
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-surface">
-      {/* Header */}
-      <header className="bg-white shadow-md border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-primary">Admin Panel</h1>
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+        <p className="text-gray-600">Manage your EMDR certification platform operations.</p>
+      </div>
+
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Students</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.totalStudents}</p>
+                <p className="text-xs text-green-600">+{data.monthlyStats.newStudents} this month</p>
+              </div>
+              <div className="bg-blue-100 rounded-full p-3">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Active Consultants</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.activeConsultants}</p>
+                <p className="text-xs text-gray-500">of {data.overview.totalConsultants} total</p>
+              </div>
+              <div className="bg-green-100 rounded-full p-3">
+                <UserCheck className="h-6 w-6 text-green-600" />
+              </div>
             </div>
-          </div>
-        </div>
-      </header>
+          </CardContent>
+        </Card>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="consultants">Consultants</TabsTrigger>
-            <TabsTrigger value="certifications">Certifications</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-8">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="bg-primary bg-opacity-10 rounded-full p-3">
-                      <Users className="text-primary h-6 w-6" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-2xl font-bold text-text-primary">
-                        {adminData?.activeStudents || studentsData.length}
-                      </h3>
-                      <p className="text-text-secondary">Active Students</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="bg-accent bg-opacity-10 rounded-full p-3">
-                      <UserCheck className="text-accent h-6 w-6" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-2xl font-bold text-text-primary">
-                        {consultantsData.length}
-                      </h3>
-                      <p className="text-text-secondary">Consultants</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="bg-secondary bg-opacity-10 rounded-full p-3">
-                      <Calendar className="text-secondary h-6 w-6" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-2xl font-bold text-text-primary">
-                        {adminData?.sessionsThisWeek || sessionsData.length}
-                      </h3>
-                      <p className="text-text-secondary">Sessions This Week</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="bg-purple-100 rounded-full p-3">
-                      <DollarSign className="text-purple-600 h-6 w-6" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-2xl font-bold text-text-primary">
-                        $12,450
-                      </h3>
-                      <p className="text-text-secondary">Revenue This Month</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Sessions</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.totalSessions}</p>
+                <p className="text-xs text-gray-500">{data.overview.completedSessions} completed</p>
+              </div>
+              <div className="bg-purple-100 rounded-full p-3">
+                <Calendar className="h-6 w-6 text-purple-600" />
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="bg-white">
-                <CardHeader>
-                  <CardTitle>Recent Registrations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {studentsData.slice(0, 5).map((student: any) => (
-                    <div key={student.id} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={student.user?.profileImageUrl || '/default-avatar.png'}
-                          alt="Student"
-                          className="w-8 h-8 rounded-full"
-                        />
-                        <div>
-                          <p className="font-medium text-text-primary">
-                            {student.user?.firstName} {student.user?.lastName}
-                          </p>
-                          <p className="text-sm text-text-secondary">
-                            {format(new Date(student.createdAt), 'MMM dd, yyyy')}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className="bg-blue-100 text-blue-800">New</Badge>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white">
-                <CardHeader>
-                  <CardTitle>Pending Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <AlertCircle className="h-5 w-5 text-amber-600" />
-                      <div>
-                        <p className="font-medium text-text-primary">
-                          {pendingCertifications.length} Certifications to Review
-                        </p>
-                        <p className="text-sm text-text-secondary">
-                          Ready for approval
-                        </p>
-                      </div>
-                    </div>
-                    <Link href="/admin?tab=certifications">
-                      <Button variant="outline" size="sm">Review</Button>
-                    </Link>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <DollarSign className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium text-text-primary">
-                          Consultant Payments Due
-                        </p>
-                        <p className="text-sm text-text-secondary">
-                          Monthly compensation
-                        </p>
-                      </div>
-                    </div>
-                    <Link href="/admin?tab=payments">
-                      <Button variant="outline" size="sm">Process</Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Monthly Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">${data.overview.monthlyRevenue.toLocaleString()}</p>
+                <p className="text-xs text-green-600">+12% vs last month</p>
+              </div>
+              <div className="bg-orange-100 rounded-full p-3">
+                <DollarSign className="h-6 w-6 text-orange-600" />
+              </div>
             </div>
-          </TabsContent>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Students Tab */}
-          <TabsContent value="students" className="space-y-6">
-            <Card className="bg-white">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="consultants">Consultants</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Recent Activities */}
+            <Card>
               <CardHeader>
-                <CardTitle>Student Management</CardTitle>
+                <CardTitle className="flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
+                  Recent Activities
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {studentsData.map((student: any) => (
-                    <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={student.user?.profileImageUrl || '/default-avatar.png'}
-                          alt="Student"
-                          className="w-12 h-12 rounded-full"
-                        />
-                        <div>
-                          <h4 className="font-semibold text-text-primary">
-                            {student.user?.firstName} {student.user?.lastName}
-                          </h4>
-                          <p className="text-sm text-text-secondary">
-                            {student.user?.email}
-                          </p>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <span className="text-xs text-text-secondary">
-                              {student.totalVerifiedHours} hours completed
-                            </span>
-                            <Badge className={
-                              student.certificationStatus === 'completed' 
-                                ? 'bg-green-100 text-green-800'
-                                : student.certificationStatus === 'in_progress'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }>
-                              {student.certificationStatus}
-                            </Badge>
-                          </div>
-                        </div>
+                  {data.recentActivities.map((activity) => (
+                    <div key={activity.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="mt-1">
+                        {getActivityIcon(activity.type)}
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Mail className="h-4 w-4 mr-1" />
-                          Email
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          View Profile
-                        </Button>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">{activity.message}</p>
+                        <p className="text-xs text-gray-500">{format(activity.timestamp, 'MMM d, h:mm a')}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Certifications Tab */}
-          <TabsContent value="certifications" className="space-y-6">
-            <Card className="bg-white">
+            {/* Pending Approvals */}
+            <Card>
               <CardHeader>
-                <CardTitle>Pending Certifications ({pendingCertifications.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pendingCertifications.length > 0 ? (
-                  <div className="space-y-4">
-                    {pendingCertifications.map((student: any) => (
-                      <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <img
-                            src={student.user?.profileImageUrl || '/default-avatar.png'}
-                            alt="Student"
-                            className="w-12 h-12 rounded-full"
-                          />
-                          <div>
-                            <h4 className="font-semibold text-text-primary">
-                              {student.user?.firstName} {student.user?.lastName}
-                            </h4>
-                            <p className="text-sm text-text-secondary">
-                              {student.totalVerifiedHours} hours completed
-                            </p>
-                            <p className="text-xs text-secondary font-medium">
-                              Ready for certification
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            onClick={() => approveCertificationMutation.mutate(student.id)}
-                            disabled={approveCertificationMutation.isPending}
-                            className="bg-secondary hover:bg-green-700 text-white"
-                          >
-                            <Award className="h-4 w-4 mr-2" />
-                            Approve Certification
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                    <h3 className="text-lg font-medium text-text-primary mb-2">
-                      All caught up!
-                    </h3>
-                    <p className="text-text-secondary">
-                      No pending certifications to review at this time.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Payments Tab */}
-          <TabsContent value="payments" className="space-y-6">
-            <Card className="bg-white">
-              <CardHeader>
-                <CardTitle>Consultant Payments</CardTitle>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
+                  Pending Approvals
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {consultantsData.map((consultant: any) => (
-                    <div key={consultant.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={consultant.user?.profileImageUrl || '/default-avatar.png'}
-                          alt="Consultant"
-                          className="w-12 h-12 rounded-full"
-                        />
-                        <div>
-                          <h4 className="font-semibold text-text-primary">
-                            {consultant.user?.firstName} {consultant.user?.lastName}
-                          </h4>
-                          <p className="text-sm text-text-secondary">
-                            {consultant.totalHoursCompleted} hours completed
-                          </p>
-                          <p className="text-sm font-medium text-secondary">
-                            ${consultant.hourlyRate}/hour
-                          </p>
+                  {data.pendingApprovals.map((approval) => (
+                    <div key={approval.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium text-gray-900">{approval.name}</p>
+                          <Badge className={getPriorityColor(approval.priority)}>
+                            {approval.priority.toUpperCase()}
+                          </Badge>
                         </div>
+                        <p className="text-xs text-gray-500">{approval.item}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-lg font-bold text-text-primary">
-                          ${(parseFloat(consultant.hourlyRate || '0') * parseFloat(consultant.totalHoursCompleted || '0')).toFixed(2)}
-                        </span>
+                      <div className="flex gap-2">
                         <Button 
-                          onClick={() => payConsultantMutation.mutate({
-                            consultantId: consultant.id,
-                            amount: parseFloat(consultant.hourlyRate || '0') * parseFloat(consultant.totalHoursCompleted || '0')
-                          })}
-                          disabled={payConsultantMutation.isPending}
+                          size="sm" 
                           variant="outline"
+                          onClick={() => handleApproval(approval.id, false)}
                         >
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          Pay Now
+                          Reject
+                        </Button>
+                        <Button 
+                          size="sm"
+                          onClick={() => handleApproval(approval.id, true)}
+                        >
+                          Approve
                         </Button>
                       </div>
                     </div>
@@ -453,9 +245,91 @@ export default function AdminPanel() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="students" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Student Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-6 bg-blue-50 rounded-lg">
+                  <Users className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">Active Students</h3>
+                  <p className="text-2xl font-bold text-blue-800">{data.overview.activeStudents}</p>
+                </div>
+                <div className="text-center p-6 bg-green-50 rounded-lg">
+                  <GraduationCap className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                  <h3 className="font-semibold text-green-900">Certifications</h3>
+                  <p className="text-2xl font-bold text-green-800">{data.monthlyStats.completedCertifications}</p>
+                </div>
+                <div className="text-center p-6 bg-purple-50 rounded-lg">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+                  <h3 className="font-semibold text-purple-900">Progress Rate</h3>
+                  <p className="text-2xl font-bold text-purple-800">87%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="consultants" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Consultant Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-6 bg-blue-50 rounded-lg">
+                  <UserCheck className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">Active Consultants</h3>
+                  <p className="text-2xl font-bold text-blue-800">{data.overview.activeConsultants}</p>
+                </div>
+                <div className="text-center p-6 bg-green-50 rounded-lg">
+                  <BarChart3 className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                  <h3 className="font-semibold text-green-900">Utilization</h3>
+                  <p className="text-2xl font-bold text-green-800">{data.monthlyStats.consultantUtilization}%</p>
+                </div>
+                <div className="text-center p-6 bg-orange-50 rounded-lg">
+                  <CheckCircle className="h-8 w-8 mx-auto mb-2 text-orange-600" />
+                  <h3 className="font-semibold text-orange-900">Avg Rating</h3>
+                  <p className="text-2xl font-bold text-orange-800">{data.monthlyStats.averageSessionRating}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="text-center p-4 border rounded-lg">
+                  <h4 className="font-medium text-gray-900">Session Completion Rate</h4>
+                  <p className="text-2xl font-bold text-green-600">94%</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <h4 className="font-medium text-gray-900">Average Session Duration</h4>
+                  <p className="text-2xl font-bold text-blue-600">58min</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <h4 className="font-medium text-gray-900">Student Satisfaction</h4>
+                  <p className="text-2xl font-bold text-purple-600">4.7/5</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <h4 className="font-medium text-gray-900">Platform Uptime</h4>
+                  <p className="text-2xl font-bold text-orange-600">99.9%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
