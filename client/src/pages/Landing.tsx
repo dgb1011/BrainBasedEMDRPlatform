@@ -1,10 +1,37 @@
+import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Video, Calendar, TrendingUp, Award, Users, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Calendar, 
+  Video, 
+  TrendingUp, 
+  Users, 
+  Clock, 
+  Shield, 
+  Award, 
+  CheckCircle,
+  Zap,
+  FileText
+} from 'lucide-react';
 
 export default function Landing() {
+  const { isAuthenticated } = useAuth();
+  const [selectedRole, setSelectedRole] = useState<string>('student');
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+
+  if (isAuthenticated) {
+    window.location.href = '/';
+    return null;
+  }
+
+  const handleGetStarted = () => {
+    setShowRoleSelector(true);
+  };
+
   const handleLogin = () => {
-    window.location.href = '/api/login';
+    window.location.href = `/api/login?role=${selectedRole}`;
   };
 
   return (
@@ -39,7 +66,7 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg" 
-              onClick={handleLogin}
+              onClick={handleGetStarted}
               className="bg-primary hover:bg-blue-700 text-white px-8 py-3"
             >
               Get Started
@@ -202,13 +229,35 @@ export default function Landing() {
             Join hundreds of mental health professionals who have successfully completed 
             their EMDR certification through our platform.
           </p>
-          <Button 
-            size="lg" 
-            onClick={handleLogin}
-            className="bg-primary hover:bg-blue-700 text-white px-8 py-3"
-          >
-            Get Started Today
-          </Button>
+           {showRoleSelector ? (
+            <div className="flex flex-col items-center justify-center">
+              <Select onValueChange={setSelectedRole}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="consultant">Consultant</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                size="lg" 
+                onClick={handleLogin}
+                className="bg-primary hover:bg-blue-700 text-white px-8 py-3 mt-4"
+              >
+                Continue as {selectedRole}
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              size="lg" 
+              onClick={handleGetStarted}
+              className="bg-primary hover:bg-blue-700 text-white px-8 py-3"
+            >
+              Get Started Today
+            </Button>
+          )}
         </div>
       </section>
 

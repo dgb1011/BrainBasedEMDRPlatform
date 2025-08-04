@@ -21,16 +21,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user is a student or consultant
       let student = await storage.getStudentByUserId(userId);
-      const consultant = await storage.getConsultantByUserId(userId);
+      let consultant = await storage.getConsultantByUserId(userId);
 
-      // If user is not a student or consultant, automatically create a student profile
+      // Check if this is a new user and we have a role in session
+      if (!student && !consultant && req.session.pendingRole) {
+        const role = req.session.pendingRole;
+        delete req.session.pendingRole; // Clear the pending role
+
+        if (role === 'student') {
+          student = await storage.createStudent({
+            userId: userId,
+            kajabiUserId: null,
+            phone: null,
+            timezone: 'UTC',
+            courseCompletionDate: new Date(),
+            totalVerifiedHours: '0',
+            certificationStatus: 'in_progress',
+            preferredSessionLength: 60,
+            consultationPreferences: {}
+          });
+        } else if (role === 'consultant') {
+          consultant = await storage.createConsultant({
+            userId: userId,
+            specialty: 'General EMDR',
+            hourlyRate: '150',
+            timeZone: 'UTC',
+            availableHours: [],
+            totalHoursCompleted: '0',
+            certificationExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+            isActive: true
+          });
+        }
+      }
+
+      // If still no profile and not admin, default to student
       if (!student && !consultant) {
         student = await storage.createStudent({
           userId: userId,
           kajabiUserId: null,
           phone: null,
           timezone: 'UTC',
-          courseCompletionDate: new Date(), // Set to current date for new users
+          courseCompletionDate: new Date(),
           totalVerifiedHours: '0',
           certificationStatus: 'in_progress',
           preferredSessionLength: 60,

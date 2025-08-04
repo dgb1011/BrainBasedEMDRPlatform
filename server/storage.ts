@@ -28,21 +28,21 @@ export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  
+
   // Student operations
   getStudent(id: string): Promise<Student | undefined>;
   getStudentByUserId(userId: string): Promise<Student | undefined>;
   createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: string, student: Partial<Student>): Promise<Student>;
   getAllStudents(): Promise<Student[]>;
-  
+
   // Consultant operations
   getConsultant(id: string): Promise<Consultant | undefined>;
   getConsultantByUserId(userId: string): Promise<Consultant | undefined>;
   createConsultant(consultant: InsertConsultant): Promise<Consultant>;
   updateConsultant(id: string, consultant: Partial<Consultant>): Promise<Consultant>;
   getAllConsultants(): Promise<Consultant[]>;
-  
+
   // Session operations
   getConsultationSession(id: string): Promise<ConsultationSession | undefined>;
   createConsultationSession(session: InsertConsultationSession): Promise<ConsultationSession>;
@@ -50,16 +50,16 @@ export interface IStorage {
   getSessionsForStudent(studentId: string): Promise<ConsultationSession[]>;
   getSessionsForConsultant(consultantId: string): Promise<ConsultationSession[]>;
   getUpcomingSessionsForStudent(studentId: string): Promise<ConsultationSession[]>;
-  
+
   // Video session operations
   createVideoSession(session: InsertVideoSession): Promise<VideoSession>;
   getVideoSession(id: string): Promise<VideoSession | undefined>;
   updateVideoSession(id: string, session: Partial<VideoSession>): Promise<VideoSession>;
-  
+
   // Availability operations
   getConsultantAvailability(consultantId: string): Promise<ConsultantAvailability[]>;
   createAvailability(availability: Omit<ConsultantAvailability, 'id' | 'createdAt'>): Promise<ConsultantAvailability>;
-  
+
   // Document operations
   getStudentDocuments(studentId: string): Promise<StudentDocument[]>;
   createStudentDocument(document: Omit<StudentDocument, 'id' | 'createdAt'>): Promise<StudentDocument>;
@@ -277,7 +277,7 @@ export class MemStorage implements IStorage {
   async updateStudent(id: string, studentData: Partial<Student>): Promise<Student> {
     const existing = this.students.get(id);
     if (!existing) throw new Error('Student not found');
-    
+
     const updated: Student = {
       ...existing,
       ...studentData,
@@ -324,7 +324,7 @@ export class MemStorage implements IStorage {
   async updateConsultant(id: string, consultantData: Partial<Consultant>): Promise<Consultant> {
     const existing = this.consultants.get(id);
     if (!existing) throw new Error('Consultant not found');
-    
+
     const updated: Consultant = {
       ...existing,
       ...consultantData,
@@ -373,7 +373,7 @@ export class MemStorage implements IStorage {
   async updateConsultationSession(id: string, sessionData: Partial<ConsultationSession>): Promise<ConsultationSession> {
     const existing = this.consultationSessions.get(id);
     if (!existing) throw new Error('Session not found');
-    
+
     const updated: ConsultationSession = {
       ...existing,
       ...sessionData,
@@ -433,7 +433,7 @@ export class MemStorage implements IStorage {
   async updateVideoSession(id: string, sessionData: Partial<VideoSession>): Promise<VideoSession> {
     const existing = this.videoSessions.get(id);
     if (!existing) throw new Error('Video session not found');
-    
+
     const updated: VideoSession = {
       ...existing,
       ...sessionData,
@@ -493,7 +493,7 @@ export class MemStorage implements IStorage {
   async updateStudent(id: string, updates: Partial<Student>): Promise<Student | undefined> {
     const student = this.students.get(id);
     if (!student) return undefined;
-    
+
     const updatedStudent = { ...student, ...updates };
     this.students.set(id, updatedStudent);
     return updatedStudent;
@@ -502,7 +502,7 @@ export class MemStorage implements IStorage {
   async updateConsultant(id: string, updates: Partial<Consultant>): Promise<Consultant | undefined> {
     const consultant = this.consultants.get(id);
     if (!consultant) return undefined;
-    
+
     const updatedConsultant = { ...consultant, ...updates };
     this.consultants.set(id, updatedConsultant);
     return updatedConsultant;
@@ -511,7 +511,7 @@ export class MemStorage implements IStorage {
   async updateConsultationSession(id: string, updates: Partial<ConsultationSession>): Promise<ConsultationSession | undefined> {
     const session = this.consultationSessions.get(id);
     if (!session) return undefined;
-    
+
     const updatedSession = { ...session, ...updates };
     this.consultationSessions.set(id, updatedSession);
     return updatedSession;
@@ -520,7 +520,7 @@ export class MemStorage implements IStorage {
   async updateVideoSession(id: string, updates: Partial<VideoSession>): Promise<VideoSession | undefined> {
     const session = this.videoSessions.get(id);
     if (!session) return undefined;
-    
+
     const updatedSession = { ...session, ...updates };
     this.videoSessions.set(id, updatedSession);
     return updatedSession;
