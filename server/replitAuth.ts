@@ -105,6 +105,7 @@ export async function setupAuth(app: Express) {
     // Store the role in session if provided
     if (req.query.role) {
       (req.session as any).pendingRole = req.query.role;
+      console.log('Storing pending role:', req.query.role);
     }
     
     passport.authenticate(`replitauth:${req.hostname}`, {

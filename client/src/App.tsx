@@ -30,6 +30,8 @@ function Router() {
   // Route based on user type
   const userType = user?.userType;
 
+  console.log('User type:', userType, 'Full user:', user); // Debug log
+
   return (
     <Switch>
       {userType === 'admin' ? (
@@ -37,6 +39,7 @@ function Router() {
           <Route path="/" component={AdminPanel} />
           <Route path="/admin" component={AdminPanel} />
           <Route path="/video/:sessionId" component={VideoSession} />
+          <Route component={NotFound} />
         </>
       ) : userType === 'consultant' ? (
         <>
@@ -44,19 +47,24 @@ function Router() {
           <Route path="/schedule" component={Schedule} />
           <Route path="/sessions" component={Sessions} />
           <Route path="/video/:sessionId" component={VideoSession} />
+          <Route component={NotFound} />
         </>
-      ) : (
-        // Default to student dashboard
+      ) : userType === 'student' ? (
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/schedule" component={Schedule} />
           <Route path="/progress" component={Progress} />
           <Route path="/sessions" component={Sessions} />
-          <Route path="/admin" component={AdminPanel} />
           <Route path="/video/:sessionId" component={VideoSession} />
+          <Route component={NotFound} />
+        </>
+      ) : (
+        // Fallback for undefined userType
+        <>
+          <Route path="/" component={Landing} />
+          <Route component={NotFound} />
         </>
       )}
-      <Route component={NotFound} />
     </Switch>
   );
 }

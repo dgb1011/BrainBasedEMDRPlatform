@@ -22,6 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user is a student or consultant
       let student = await storage.getStudentByUserId(userId);
       let consultant = await storage.getConsultantByUserId(userId);
+      let userType = 'admin'; // Default to admin if no profile exists
 
       // Check if this is a new user and we have a role in session
       if (!student && !consultant && req.session.pendingRole) {
@@ -40,6 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             preferredSessionLength: 60,
             consultationPreferences: {}
           });
+          userType = 'student';
         } else if (role === 'consultant') {
           consultant = await storage.createConsultant({
             userId: userId,
@@ -51,27 +53,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             certificationExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
             isActive: true
           });
+          userType = 'consultant';
+        } else if (role === 'admin') {
+          userType = 'admin';
         }
-      }
-
-      // If still no profile and not admin, default to student
-      if (!student && !consultant) {
-        student = await storage.createStudent({
-          userId: userId,
-          kajabiUserId: null,
-          phone: null,
-          timezone: 'UTC',
-          courseCompletionDate: new Date(),
-          totalVerifiedHours: '0',
-          certificationStatus: 'in_progress',
-          preferredSessionLength: 60,
-          consultationPreferences: {}
-        });
+      } else {
+        // Determine user type based on existing profiles
+        if (student) {
+          userType = 'student';
+        } else if (consultant) {
+          userType = 'consultant';
+        }
       }
 
       res.json({
         ...user,
-        userType: student ? 'student' : consultant ? 'consultant' : 'admin',
+        userType: userType,
         profile: student || consultant || null
       });
     } catch (error) {
