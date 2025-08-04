@@ -137,6 +137,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Consultant routes
+  app.get('/api/consultants/dashboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const consultant = await storage.getConsultantByUserId(userId);
+      
+      if (!consultant) {
+        return res.status(404).json({ message: "Consultant not found" });
+      }
+
+      // Get consultant's sessions
+      const allSessions = Array.from((storage as any).consultationSessions.values());
+      const consultantSessions = allSessions.filter((session: any) => session.consultantId === consultant.id);
+      
+      // Calculate stats
+      const totalSessions = consultantSessions.length;
+      const completedSessions = consultantSessions.filter((session: any) => session.status === 'completed');
+      
+      // Get this week's sessions
+      const now = new Date();
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      const sessionsThisWeek = consultantSessions.filter((session: any) => {
+        const sessionDate = new Date(session.scheduledStart);
+        return sessionDate >= weekStart && sessionDate < weekEnd;
+      });
+
+      // Get this month's sessions for hours calculation
+      const thisMonth = consultantSessions.filter((session: any) => {
+        const sessionDate = new Date(session.scheduledStart);
+        return sessionDate.getMonth() === now.getMonth() && 
+               sessionDate.getFullYear() === now.getFullYear() &&
+               session.status === 'completed';
+      });
+
+      const hoursThisMonth = thisMonth.reduce((total: number, session: any) => {
+        return total + (session.duration || 60) / 60; // Convert minutes to hours
+      }, 0);
+
+      // Get unique students
+      const uniqueStudents = new Set(consultantSessions.map((session: any) => session.studentId));
+
+      res.json({
+        consultant,
+        totalSessions,
+        sessionsThisWeek: sessionsThisWeek.length,
+        activeStudents: uniqueStudents.size,
+        hoursThisMonth: Math.round(hoursThisMonth),
+        upcomingSessions: consultantSessions.filter((session: any) => {
+          const sessionDate = new Date(session.scheduledStart);
+          return sessionDate > now && session.status === 'scheduled';
+        }).slice(0, 5)
+      });
+    } catch (error) {
+      console.error("Error fetching consultant dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data" });
+    }
+  });
+
   app.get('/api/consultants', async (req, res) => {
     try {
       const consultants = await storage.getAllConsultants();
