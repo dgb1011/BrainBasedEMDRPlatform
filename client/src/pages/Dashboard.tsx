@@ -88,7 +88,7 @@ export default function Dashboard() {
     );
   }
 
-  const { student, upcomingSessions, progress } = dashboardData;
+  const { student, upcomingSessions, progress } = dashboardData || {};
 
   return (
     <div className="min-h-screen bg-surface">
@@ -160,13 +160,13 @@ export default function Dashboard() {
           {/* Hours Completed */}
           <Card className="bg-white text-center">
             <CardContent className="p-6">
-              <ProgressCircle progress={progress.completionPercentage} className="mb-4">
+              <ProgressCircle progress={progress?.completionPercentage || 0} className="mb-4">
                 <span className="text-2xl font-bold text-text-primary">
-                  {Math.round(progress.completedHours)}
+                  {Math.round(progress?.completedHours || 0)}
                 </span>
               </ProgressCircle>
               <h3 className="text-lg font-semibold text-text-primary">Hours Completed</h3>
-              <p className="text-text-secondary">of {progress.totalRequired} required</p>
+              <p className="text-text-secondary">of {progress?.totalRequired || 40} required</p>
             </CardContent>
           </Card>
 
@@ -179,7 +179,7 @@ export default function Dashboard() {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-2xl font-bold text-text-primary">
-                    {progress.sessionsThisMonth}
+                    {progress?.sessionsThisMonth || 0}
                   </h3>
                   <p className="text-text-secondary">Sessions This Month</p>
                 </div>
@@ -196,7 +196,7 @@ export default function Dashboard() {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-semibold text-text-primary">Next Session</h3>
-                  {upcomingSessions.length > 0 ? (
+                  {upcomingSessions && upcomingSessions.length > 0 ? (
                     <>
                       <p className="text-text-secondary">
                         {new Date(upcomingSessions[0].scheduledStart).toLocaleDateString()}
@@ -224,7 +224,7 @@ export default function Dashboard() {
                   <h3 className="text-sm font-semibold text-text-primary">Est. Completion</h3>
                   <p className="text-text-secondary">March 2024</p>
                   <p className="text-xs text-secondary">
-                    {progress.remainingHours} hours remaining
+                    {progress?.remainingHours || 40} hours remaining
                   </p>
                 </div>
               </div>
@@ -247,8 +247,8 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {upcomingSessions.length > 0 ? (
-                upcomingSessions.slice(0, 3).map((session) => (
+              {upcomingSessions && upcomingSessions.length > 0 ? (
+                upcomingSessions.slice(0, 3).map((session: any) => (
                   <SessionCard
                     key={session.id}
                     session={session}
@@ -370,7 +370,7 @@ export default function Dashboard() {
                   <div className="bg-primary bg-opacity-10 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
                     <Users className="text-primary h-6 w-6" />
                   </div>
-                  <h4 className="text-2xl font-bold text-text-primary">{adminData.activeStudents}</h4>
+                  <h4 className="text-2xl font-bold text-text-primary">{adminData?.activeStudents || 0}</h4>
                   <p className="text-text-secondary text-sm">Active Students</p>
                   <p className="text-secondary text-xs">+12% this month</p>
                 </div>
@@ -380,7 +380,7 @@ export default function Dashboard() {
                   <div className="bg-accent bg-opacity-10 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
                     <Video className="text-accent h-6 w-6" />
                   </div>
-                  <h4 className="text-2xl font-bold text-text-primary">{adminData.sessionsThisWeek}</h4>
+                  <h4 className="text-2xl font-bold text-text-primary">{adminData?.sessionsThisWeek || 0}</h4>
                   <p className="text-text-secondary text-sm">Sessions This Week</p>
                   <p className="text-secondary text-xs">+8% vs last week</p>
                 </div>
@@ -390,7 +390,7 @@ export default function Dashboard() {
                   <div className="bg-secondary bg-opacity-10 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
                     <Award className="text-secondary h-6 w-6" />
                   </div>
-                  <h4 className="text-2xl font-bold text-text-primary">{adminData.completedCertifications}</h4>
+                  <h4 className="text-2xl font-bold text-text-primary">{adminData?.completedCertifications || 0}</h4>
                   <p className="text-text-secondary text-sm">Certifications</p>
                   <p className="text-secondary text-xs">This month</p>
                 </div>
@@ -400,7 +400,7 @@ export default function Dashboard() {
                   <div className="bg-secondary bg-opacity-10 rounded-full p-4 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
                     <Activity className="text-secondary h-6 w-6" />
                   </div>
-                  <h4 className="text-2xl font-bold text-text-primary">{adminData.systemUptime}%</h4>
+                  <h4 className="text-2xl font-bold text-text-primary">{adminData?.systemUptime || 99.9}%</h4>
                   <p className="text-text-secondary text-sm">System Uptime</p>
                   <p className="text-secondary text-xs">Last 30 days</p>
                 </div>

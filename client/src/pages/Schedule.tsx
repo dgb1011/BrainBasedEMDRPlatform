@@ -103,7 +103,7 @@ export default function Schedule() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {consultants.slice(0, 3).map((consultant: any) => (
+                  {consultants && consultants.slice(0, 3).map((consultant: any) => (
                     <div key={consultant.id} className="border rounded-lg p-4">
                       <div className="flex items-center space-x-3 mb-3">
                         <img

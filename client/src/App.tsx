@@ -8,6 +8,9 @@ import Dashboard from "@/pages/Dashboard";
 import Landing from "@/pages/Landing";
 import Schedule from "@/pages/Schedule";
 import VideoSession from "@/pages/VideoSession";
+import Progress from "@/pages/Progress";
+import Sessions from "@/pages/Sessions";
+import AdminPanel from "@/pages/AdminPanel";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +24,9 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/schedule" component={Schedule} />
+          <Route path="/progress" component={Progress} />
+          <Route path="/sessions" component={Sessions} />
+          <Route path="/admin" component={AdminPanel} />
           <Route path="/video/:sessionId" component={VideoSession} />
         </>
       )}

@@ -17,8 +17,8 @@ export default function VideoSession() {
   });
 
   useEffect(() => {
-    if (session?.videoSession?.roomId) {
-      setRoomId(session.videoSession.roomId);
+    if (session && (session as any).videoSession?.roomId) {
+      setRoomId((session as any).videoSession.roomId);
     }
   }, [session]);
 

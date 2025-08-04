@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Video, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Video, Calendar, Clock, User, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SessionCardProps {
@@ -12,88 +11,135 @@ interface SessionCardProps {
     status: string;
     consultant?: {
       user?: {
-        firstName: string;
-        lastName: string;
-        profileImageUrl?: string | null;
+        firstName?: string;
+        lastName?: string;
+        profileImageUrl?: string;
       };
       specializations?: string[];
     };
   };
-  onJoinSession?: (sessionId: string) => void;
+  onJoinSession: (sessionId: string) => void;
   onReschedule?: (sessionId: string) => void;
 }
 
 export default function SessionCard({ session, onJoinSession, onReschedule }: SessionCardProps) {
-  const startDate = new Date(session.scheduledStart);
-  const endDate = new Date(session.scheduledEnd);
-  const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60); // hours
-  
-  const canJoin = session.status === 'scheduled' && new Date() >= new Date(startDate.getTime() - 15 * 60 * 1000); // 15 minutes before
-  
-  const consultantName = session.consultant?.user 
-    ? `Dr. ${session.consultant.user.firstName} ${session.consultant.user.lastName}`
-    : 'Unknown Consultant';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return 'bg-blue-100 text-blue-800';
+      case 'in_progress':
+        return 'bg-green-100 text-green-800';
+      case 'completed':
+        return 'bg-gray-100 text-gray-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  const initials = session.consultant?.user
-    ? `${session.consultant.user.firstName[0]}${session.consultant.user.lastName[0]}`
-    : 'UK';
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return 'Scheduled';
+      case 'in_progress':
+        return 'In Progress';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  };
+
+  const canJoin = (status: string, scheduledStart: string) => {
+    if (status !== 'scheduled') return false;
+    const sessionTime = new Date(scheduledStart);
+    const now = new Date();
+    const timeDiff = sessionTime.getTime() - now.getTime();
+    return timeDiff <= 15 * 60 * 1000 && timeDiff >= -60 * 60 * 1000; // 15 min before to 1 hour after
+  };
+
+  const isUpcoming = (status: string, scheduledStart: string) => {
+    return status === 'scheduled' && new Date(scheduledStart) > new Date();
+  };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-12 w-12">
-              <AvatarImage 
-                src={session.consultant?.user?.profileImageUrl || undefined} 
-                alt={consultantName}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div>
-              <h4 className="font-medium text-text-primary">{consultantName}</h4>
-              <p className="text-sm text-text-secondary">
-                {format(startDate, 'MMM dd, yyyy • h:mm a')} - {format(endDate, 'h:mm a')}
-              </p>
-              <p className="text-xs text-accent font-medium">{duration} hour{duration !== 1 ? 's' : ''}</p>
-              {session.consultant?.specializations && session.consultant.specializations.length > 0 && (
-                <p className="text-xs text-text-secondary mt-1">
-                  {session.consultant.specializations.join(', ')}
-                </p>
-              )}
+    <div className="flex items-center justify-between p-4 border rounded-lg bg-white hover:shadow-md transition-shadow">
+      <div className="flex items-center space-x-4">
+        <div className="flex-shrink-0">
+          <img
+            src={session.consultant?.user?.profileImageUrl || '/default-avatar.png'}
+            alt={`${session.consultant?.user?.firstName} ${session.consultant?.user?.lastName}`}
+            className="w-12 h-12 rounded-full object-cover"
+          />
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center space-x-2 mb-1">
+            <h4 className="text-lg font-semibold text-text-primary truncate">
+              {session.consultant?.user?.firstName} {session.consultant?.user?.lastName}
+            </h4>
+            <Badge className={getStatusColor(session.status)}>
+              {getStatusText(session.status)}
+            </Badge>
+          </div>
+          
+          <div className="flex items-center space-x-4 text-sm text-text-secondary">
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 mr-1" />
+              {format(new Date(session.scheduledStart), 'MMM dd, yyyy')}
+            </div>
+            <div className="flex items-center">
+              <Clock className="h-4 w-4 mr-1" />
+              {format(new Date(session.scheduledStart), 'h:mm a')} - {format(new Date(session.scheduledEnd), 'h:mm a')}
             </div>
           </div>
           
-          <div className="flex flex-col space-y-2">
-            {canJoin ? (
-              <Button 
-                onClick={() => onJoinSession?.(session.id)}
-                className="bg-primary hover:bg-blue-700 text-white"
-              >
-                <Video className="h-4 w-4 mr-2" />
-                Join
-              </Button>
-            ) : session.status === 'scheduled' ? (
-              <Button 
-                variant="outline" 
-                onClick={() => onReschedule?.(session.id)}
-                className="border-primary text-primary hover:bg-blue-50"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Reschedule
-              </Button>
-            ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary bg-opacity-10 text-secondary">
-                {session.status === 'completed' ? 'Completed' : 'Confirmed'}
-              </span>
-            )}
-          </div>
+          {session.consultant?.specializations && session.consultant.specializations.length > 0 && (
+            <div className="mt-2">
+              <div className="flex flex-wrap gap-1">
+                {session.consultant.specializations.slice(0, 2).map((spec, index) => (
+                  <span 
+                    key={index}
+                    className="inline-block px-2 py-1 text-xs bg-gray-100 text-text-secondary rounded"
+                  >
+                    {spec}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      
+      <div className="flex items-center space-x-2 ml-4">
+        {canJoin(session.status, session.scheduledStart) && (
+          <Button 
+            onClick={() => onJoinSession(session.id)}
+            className="bg-secondary hover:bg-green-700 text-white"
+          >
+            <Video className="h-4 w-4 mr-2" />
+            Join Session
+          </Button>
+        )}
+        
+        {isUpcoming(session.status, session.scheduledStart) && !canJoin(session.status, session.scheduledStart) && onReschedule && (
+          <Button 
+            variant="outline" 
+            onClick={() => onReschedule(session.id)}
+          >
+            Reschedule
+          </Button>
+        )}
+        
+        {session.status === 'completed' && (
+          <Button variant="ghost" size="sm">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

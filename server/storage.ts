@@ -233,8 +233,11 @@ export class MemStorage implements IStorage {
   async upsertUser(userData: UpsertUser): Promise<User> {
     const id = userData.id || randomUUID();
     const user: User = {
-      ...userData,
       id,
+      email: userData.email || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
       createdAt: userData.createdAt || new Date(),
       updatedAt: new Date(),
     };
@@ -254,8 +257,16 @@ export class MemStorage implements IStorage {
   async createStudent(studentData: InsertStudent): Promise<Student> {
     const id = randomUUID();
     const student: Student = {
-      ...studentData,
       id,
+      userId: studentData.userId,
+      kajabiUserId: studentData.kajabiUserId || null,
+      phone: studentData.phone || null,
+      timezone: studentData.timezone || 'UTC',
+      courseCompletionDate: studentData.courseCompletionDate,
+      totalVerifiedHours: studentData.totalVerifiedHours || '0',
+      certificationStatus: studentData.certificationStatus || 'in_progress',
+      preferredSessionLength: studentData.preferredSessionLength || 60,
+      consultationPreferences: studentData.consultationPreferences || {},
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -293,8 +304,16 @@ export class MemStorage implements IStorage {
   async createConsultant(consultantData: InsertConsultant): Promise<Consultant> {
     const id = randomUUID();
     const consultant: Consultant = {
-      ...consultantData,
       id,
+      userId: consultantData.userId,
+      licenseNumber: consultantData.licenseNumber || null,
+      specializations: consultantData.specializations || null,
+      hourlyRate: consultantData.hourlyRate || null,
+      isActive: consultantData.isActive ?? true,
+      bio: consultantData.bio || null,
+      yearsExperience: consultantData.yearsExperience || null,
+      totalHoursCompleted: consultantData.totalHoursCompleted || '0',
+      averageRating: consultantData.averageRating || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -328,8 +347,22 @@ export class MemStorage implements IStorage {
   async createConsultationSession(sessionData: InsertConsultationSession): Promise<ConsultationSession> {
     const id = randomUUID();
     const session: ConsultationSession = {
-      ...sessionData,
       id,
+      studentId: sessionData.studentId,
+      consultantId: sessionData.consultantId,
+      videoSessionId: sessionData.videoSessionId || null,
+      scheduledStart: sessionData.scheduledStart,
+      scheduledEnd: sessionData.scheduledEnd,
+      actualStart: sessionData.actualStart || null,
+      actualEnd: sessionData.actualEnd || null,
+      status: sessionData.status || 'scheduled',
+      sessionType: sessionData.sessionType || 'video_consultation',
+      studentVerifiedAt: sessionData.studentVerifiedAt || null,
+      consultantVerifiedAt: sessionData.consultantVerifiedAt || null,
+      studentNotes: sessionData.studentNotes || null,
+      consultantNotes: sessionData.consultantNotes || null,
+      sessionRating: sessionData.sessionRating || null,
+      technicalIssuesReported: sessionData.technicalIssuesReported ?? false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -378,8 +411,15 @@ export class MemStorage implements IStorage {
   async createVideoSession(sessionData: InsertVideoSession): Promise<VideoSession> {
     const id = randomUUID();
     const session: VideoSession = {
-      ...sessionData,
       id,
+      roomId: sessionData.roomId,
+      recordingEnabled: sessionData.recordingEnabled ?? true,
+      recordingUrl: sessionData.recordingUrl || null,
+      recordingDurationSeconds: sessionData.recordingDurationSeconds || null,
+      videoQuality: sessionData.videoQuality || '720p',
+      connectionQualityAvg: sessionData.connectionQualityAvg || null,
+      technicalIssues: sessionData.technicalIssues || [],
+      sessionMetadata: sessionData.sessionMetadata || {},
       createdAt: new Date(),
     };
     this.videoSessions.set(id, session);
@@ -435,6 +475,55 @@ export class MemStorage implements IStorage {
     };
     this.studentDocuments.set(id, document);
     return document;
+  }
+
+  // Additional methods for admin functionality
+  async getAllStudents(): Promise<Student[]> {
+    return Array.from(this.students.values());
+  }
+
+  async getAllConsultants(): Promise<Consultant[]> {
+    return Array.from(this.consultants.values());
+  }
+
+  async getAllConsultationSessions(): Promise<ConsultationSession[]> {
+    return Array.from(this.consultationSessions.values());
+  }
+
+  async updateStudent(id: string, updates: Partial<Student>): Promise<Student | undefined> {
+    const student = this.students.get(id);
+    if (!student) return undefined;
+    
+    const updatedStudent = { ...student, ...updates };
+    this.students.set(id, updatedStudent);
+    return updatedStudent;
+  }
+
+  async updateConsultant(id: string, updates: Partial<Consultant>): Promise<Consultant | undefined> {
+    const consultant = this.consultants.get(id);
+    if (!consultant) return undefined;
+    
+    const updatedConsultant = { ...consultant, ...updates };
+    this.consultants.set(id, updatedConsultant);
+    return updatedConsultant;
+  }
+
+  async updateConsultationSession(id: string, updates: Partial<ConsultationSession>): Promise<ConsultationSession | undefined> {
+    const session = this.consultationSessions.get(id);
+    if (!session) return undefined;
+    
+    const updatedSession = { ...session, ...updates };
+    this.consultationSessions.set(id, updatedSession);
+    return updatedSession;
+  }
+
+  async updateVideoSession(id: string, updates: Partial<VideoSession>): Promise<VideoSession | undefined> {
+    const session = this.videoSessions.get(id);
+    if (!session) return undefined;
+    
+    const updatedSession = { ...session, ...updates };
+    this.videoSessions.set(id, updatedSession);
+    return updatedSession;
   }
 }
 

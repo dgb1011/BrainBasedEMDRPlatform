@@ -20,8 +20,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is a student or consultant
-      const student = await storage.getStudentByUserId(userId);
+      let student = await storage.getStudentByUserId(userId);
       const consultant = await storage.getConsultantByUserId(userId);
+
+      // If user is not a student or consultant, automatically create a student profile
+      if (!student && !consultant) {
+        student = await storage.createStudent({
+          userId: userId,
+          kajabiUserId: null,
+          phone: null,
+          timezone: 'UTC',
+          courseCompletionDate: new Date(), // Set to current date for new users
+          totalVerifiedHours: '0',
+          certificationStatus: 'in_progress',
+          preferredSessionLength: 60,
+          consultationPreferences: {}
+        });
+      }
 
       res.json({
         ...user,
@@ -205,10 +220,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/video-sessions/:roomId', isAuthenticated, async (req, res) => {
     try {
       const { roomId } = req.params;
-      const videoSessions = await Promise.all(
-        Array.from((storage as any).videoSessions.values())
-      );
-      const videoSession = videoSessions.find(vs => vs.roomId === roomId);
+      const videoSessions = Array.from((storage as any).videoSessions.values());
+      const videoSession = videoSessions.find((vs: any) => vs.roomId === roomId);
       
       if (!videoSession) {
         return res.status(404).json({ message: "Video session not found" });
@@ -252,6 +265,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching admin dashboard:", error);
       res.status(500).json({ message: "Failed to fetch admin dashboard" });
+    }
+  });
+
+  app.get('/api/admin/students', isAuthenticated, async (req, res) => {
+    try {
+      const students = await storage.getAllStudents();
+      const studentsWithUsers = await Promise.all(
+        students.map(async (student) => {
+          const user = await storage.getUser(student.userId);
+          return { ...student, user };
+        })
+      );
+      res.json(studentsWithUsers);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  app.get('/api/admin/consultants', isAuthenticated, async (req, res) => {
+    try {
+      const consultants = await storage.getAllConsultants();
+      const consultantsWithUsers = await Promise.all(
+        consultants.map(async (consultant) => {
+          const user = await storage.getUser(consultant.userId);
+          return { ...consultant, user };
+        })
+      );
+      res.json(consultantsWithUsers);
+    } catch (error) {
+      console.error("Error fetching consultants:", error);
+      res.status(500).json({ message: "Failed to fetch consultants" });
+    }
+  });
+
+  app.get('/api/admin/sessions', isAuthenticated, async (req, res) => {
+    try {
+      const sessions = await storage.getAllConsultationSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  app.post('/api/admin/certifications/:studentId/approve', isAuthenticated, async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      
+      // Update student certification status
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // In a real implementation, this would:
+      // 1. Generate PDF certificate
+      // 2. Send email with certificate
+      // 3. Update student record
+      // 4. Log the certification event
+
+      // Mock implementation - just update status
+      await storage.updateStudent(studentId, {
+        certificationStatus: 'completed',
+        updatedAt: new Date()
+      });
+
+      res.json({ message: "Certification approved and sent" });
+    } catch (error) {
+      console.error("Error approving certification:", error);
+      res.status(500).json({ message: "Failed to approve certification" });
+    }
+  });
+
+  app.post('/api/admin/payments/consultants/:consultantId', isAuthenticated, async (req, res) => {
+    try {
+      const { consultantId } = req.params;
+      const { amount } = req.body;
+
+      // In a real implementation, this would integrate with Stripe/PayPal
+      // For now, we'll mock the payment process
+      
+      // Mock payment processing delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Log payment (in real implementation, store in payments table)
+      console.log(`Processing payment of $${amount} to consultant ${consultantId}`);
+
+      res.json({ 
+        message: "Payment processed successfully",
+        transactionId: `txn_${Date.now()}`,
+        amount: amount
+      });
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      res.status(500).json({ message: "Failed to process payment" });
     }
   });
 
