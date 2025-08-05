@@ -67,7 +67,9 @@ export default function VideoConference({ roomId, onLeave }: VideoConferenceProp
   const setupWebRTC = () => {
     const configuration = {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
       ]
     };
 
@@ -99,15 +101,27 @@ export default function VideoConference({ roomId, onLeave }: VideoConferenceProp
             type: 'ice-candidate',
             candidate: event.candidate
           },
-          roomId
+          roomId,
+          from: 'local'
         });
       }
+    };
+
+    // Handle connection state changes
+    peerConnectionRef.current.onconnectionstatechange = () => {
+      console.log('Connection state:', peerConnectionRef.current?.connectionState);
+    };
+
+    // Handle ICE connection state changes
+    peerConnectionRef.current.oniceconnectionstatechange = () => {
+      console.log('ICE connection state:', peerConnectionRef.current?.iceConnectionState);
     };
 
     // Join the room
     sendMessage({
       type: 'join_video_session',
-      roomId
+      roomId,
+      participantId: `participant_${Date.now()}`
     });
   };
 

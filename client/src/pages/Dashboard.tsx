@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ProgressCircle from '@/components/ProgressCircle';
 import SessionCard from '@/components/SessionCard';
 import CalendarView from '@/components/CalendarView';
+import Navigation from '@/components/layout/Navigation';
 import { 
   Calendar, 
   TrendingUp, 
@@ -71,6 +72,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-surface">
+        <Navigation />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-8">
             <div className="h-24 bg-gray-200 rounded-lg"></div>
@@ -115,45 +117,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-surface">
-      {/* Header */}
-      <header className="bg-white shadow-md border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-primary">BrainBased EMDR</h1>
-              <nav className="hidden md:ml-8 md:flex md:space-x-8">
-                <Link href="/" className="text-primary border-b-2 border-primary px-1 pb-4 text-sm font-medium">
-                  Dashboard
-                </Link>
-                <Link href="/schedule" className="text-text-secondary hover:text-primary px-1 pb-4 text-sm font-medium">
-                  Schedule
-                </Link>
-                <Link href="/progress" className="text-text-secondary hover:text-primary px-1 pb-4 text-sm font-medium">
-                  Progress
-                </Link>
-                <Link href="/sessions" className="text-text-secondary hover:text-primary px-1 pb-4 text-sm font-medium">
-                  Sessions
-                </Link>
-                <Link href="/admin" className="text-text-secondary hover:text-primary px-1 pb-4 text-sm font-medium">
-                  Admin
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
-                <Activity className="h-5 w-5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => window.location.href = "/api/logout"}
-              >
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

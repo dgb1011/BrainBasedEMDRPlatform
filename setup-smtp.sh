@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# =====================================================
+# SENDGRID SMTP SETUP SCRIPT
+# BrainBased EMDR Platform
+# =====================================================
+
+echo "📧 SETTING UP SENDGRID SMTP FOR BRAINBASED EMDR"
+echo "================================================"
+echo ""
+
+echo "🎯 STEP 1: SENDGRID ACCOUNT SETUP"
+echo "---------------------------------"
+echo "1. Go to https://sendgrid.com/"
+echo "2. Click 'Start for Free' and create account"
+echo "3. Verify your email address"
+echo "4. Complete domain authentication (recommended)"
+echo ""
+
+echo "🔑 STEP 2: CREATE API KEY"
+echo "-------------------------"
+echo "1. In SendGrid dashboard, go to Settings → API Keys"
+echo "2. Click 'Create API Key'"
+echo "3. Name: 'BrainBased EMDR Platform'"
+echo "4. Choose 'Full Access' or 'Restricted Access' with Mail Send"
+echo "5. Copy the API key (you'll only see it once!)"
+echo ""
+
+echo "⚙️  STEP 3: CONFIGURE SUPABASE"
+echo "-----------------------------"
+echo "1. Go to https://supabase.com/dashboard/project/sqisjjtapmujcjmxlzjz"
+echo "2. Navigate to Authentication → Settings"
+echo "3. Find 'SMTP Settings' section"
+echo "4. Enable 'Custom SMTP'"
+echo "5. Fill in the details:"
+echo ""
+echo "   SMTP Host: smtp.sendgrid.net"
+echo "   SMTP Port: 587"
+echo "   SMTP User: apikey"
+echo "   SMTP Password: [Your SendGrid API Key]"
+echo "   Sender Email: [Your verified email]"
+echo ""
+
+echo "🧪 STEP 4: TEST CONFIGURATION"
+echo "----------------------------"
+echo "1. Click 'Test SMTP Connection' in Supabase"
+echo "2. Should show success message"
+echo "3. If successful, proceed to next step"
+echo ""
+
+echo "📝 STEP 5: UPDATE ENVIRONMENT"
+echo "----------------------------"
+echo "1. Add your SendGrid API key to .env file:"
+echo "   SMTP_PASS=your-sendgrid-api-key"
+echo "2. Update sender email:"
+echo "   SMTP_FROM=your-verified-email@domain.com"
+echo ""
+
+echo "🚀 STEP 6: TEST AUTHENTICATION"
+echo "-----------------------------"
+echo "1. Restart the development server"
+echo "2. Run authentication tests"
+echo "3. Verify email delivery works"
+echo ""
+
+echo "================================================"
+echo "✅ SETUP COMPLETE!"
+echo ""
+echo "🎉 Your BrainBased EMDR platform now has:"
+echo "   ✅ Professional email delivery"
+echo "   ✅ No testing restrictions"
+echo "   ✅ Reliable authentication"
+echo "   ✅ Production-ready email system"
+echo ""
+echo "🚀 Ready to continue with feature development!"
+echo "================================================" 

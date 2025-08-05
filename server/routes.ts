@@ -1,500 +1,410 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertConsultationSessionSchema, insertVideoSessionSchema } from "@shared/schema";
+import { AuthService, authenticateToken, requireRole, UserRole } from "./auth";
+import { supabase } from "./supabase";
+import { z } from "zod";
 import { randomUUID } from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Health check endpoint
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // Authentication routes
+  app.post('/api/auth/register', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Check if user is a student or consultant
-      let student = await storage.getStudentByUserId(userId);
-      let consultant = await storage.getConsultantByUserId(userId);
-      let userType = 'admin'; // Default to admin if no profile exists
-
-      // Check if this is a new user and we have a role in session
-      if (!student && !consultant && req.session.pendingRole) {
-        const role = req.session.pendingRole;
-        delete req.session.pendingRole; // Clear the pending role
-
-        if (role === 'student') {
-          student = await storage.createStudent({
-            userId: userId,
-            kajabiUserId: null,
-            phone: null,
-            timezone: 'UTC',
-            courseCompletionDate: new Date(),
-            totalVerifiedHours: '0',
-            certificationStatus: 'in_progress',
-            preferredSessionLength: 60,
-            consultationPreferences: {}
-          });
-          userType = 'student';
-        } else if (role === 'consultant') {
-          consultant = await storage.createConsultant({
-            userId: userId,
-            licenseNumber: 'TEMP-' + userId.slice(0, 8),
-            specializations: ['General EMDR'],
-            hourlyRate: '150.00',
-            isActive: true,
-            bio: 'New consultant profile',
-            yearsExperience: 5,
-            totalHoursCompleted: '0',
-            averageRating: '5.0'
-          });
-          userType = 'consultant';
-        } else if (role === 'admin') {
-          userType = 'admin';
-        }
-      } else {
-        // Determine user type based on existing profiles
-        if (student) {
-          userType = 'student';
-        } else if (consultant) {
-          userType = 'consultant';
-        }
-      }
-
-      res.json({
-        ...user,
-        userType: userType,
-        profile: student || consultant || null
-      });
+      const { user, token } = await AuthService.register(req.body);
+      res.json({ user, token });
     } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      console.error('Registration error:', error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : 'Registration failed' 
+      });
     }
   });
 
-  // Student dashboard route
-  app.get('/api/students/dashboard', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/login', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      // Get or create student profile
-      let student = await storage.getStudentByUserId(userId);
-      if (!student) {
-        student = await storage.createStudent({
-          userId,
-          kajabiUserId: null,
-          phone: null,
-          timezone: 'UTC',
-          courseCompletionDate: new Date(),
-          totalVerifiedHours: '0',
-          certificationStatus: 'in_progress',
-          preferredSessionLength: 60,
-          consultationPreferences: {}
-        });
+      const { email, password } = req.body;
+      const { user, token } = await AuthService.login(email, password);
+      res.json({ user, token });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(401).json({ 
+        message: error instanceof Error ? error.message : 'Login failed' 
+      });
+    }
+  });
+
+  app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+    try {
+      await AuthService.logout(req.user.userId);
+      res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.status(500).json({ message: 'Logout failed' });
+    }
+  });
+
+  app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    try {
+      const user = await AuthService.getUserById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
       }
 
-      const upcomingSessions = await storage.getUpcomingSessionsForStudent(student.id);
-      const allSessions = await storage.getSessionsForStudent(student.id);
-      
-      const totalHours = parseFloat(student.totalVerifiedHours || '0');
-      const progress = Math.min((totalHours / 40) * 100, 100);
+      // Get role-specific profile
+      let profile = null;
+      if (user.role === UserRole.STUDENT) {
+        profile = await AuthService.getStudentProfile(req.user.userId);
+      } else if (user.role === UserRole.CONSULTANT) {
+        profile = await AuthService.getConsultantProfile(req.user.userId);
+      }
 
-      // Get session data with consultant info
-      const sessionsWithConsultants = await Promise.all(
-        upcomingSessions.slice(0, 3).map(async (session) => {
-          const consultant = await storage.getConsultant(session.consultantId);
-          const consultantUser = consultant ? await storage.getUser(consultant.userId) : null;
-          return {
-            ...session,
-            consultantName: consultantUser ? `${consultantUser.firstName} ${consultantUser.lastName}` : 'Unknown Consultant'
-          };
-        })
-      );
+      res.json({ user, profile });
+    } catch (error) {
+      console.error('Get user error:', error);
+      res.status(500).json({ message: 'Failed to get user' });
+    }
+  });
+
+  // Student routes
+  app.get('/api/students/dashboard', authenticateToken, requireRole([UserRole.STUDENT]), async (req, res) => {
+    try {
+      const student = await AuthService.getStudentProfile(req.user.userId);
+      if (!student) {
+        return res.status(404).json({ message: 'Student profile not found' });
+      }
+
+      // Get upcoming sessions
+      const { data: upcomingSessions } = await supabase
+        .from('consultation_sessions')
+        .select(`
+          *,
+          consultant:consultants(
+            *,
+            user:users(*)
+          )
+        `)
+        .eq('student_id', student.id)
+        .gte('scheduled_start', new Date().toISOString())
+        .eq('status', 'scheduled')
+        .order('scheduled_start', { ascending: true });
+
+      // Get completed sessions
+      const { data: completedSessions } = await supabase
+        .from('consultation_sessions')
+        .select(`
+          *,
+          consultant:consultants(
+            *,
+            user:users(*)
+          )
+        `)
+        .eq('student_id', student.id)
+        .eq('status', 'completed')
+        .order('scheduled_start', { ascending: false })
+        .limit(10);
+
+      // Calculate progress
+      const progressPercentage = Math.min((student.totalVerifiedHours / 20) * 100, 100);
 
       res.json({
         student,
-        upcomingSessions: sessionsWithConsultants,
+        upcomingSessions: upcomingSessions || [],
+        completedSessions: completedSessions || [],
         progress: {
-          totalHours,
-          percentage: progress,
-          remainingHours: Math.max(40 - totalHours, 0),
-          completedSessions: allSessions.filter(s => s.status === 'completed').length
+          totalHours: student.totalVerifiedHours,
+          requiredHours: 20,
+          percentage: progressPercentage,
+          status: student.certificationStatus
         }
       });
     } catch (error) {
-      console.error("Error fetching student dashboard:", error);
-      res.status(500).json({ message: "Failed to fetch dashboard data" });
+      console.error('Student dashboard error:', error);
+      res.status(500).json({ message: 'Failed to load dashboard' });
     }
   });
 
-
+  app.put('/api/students/profile', authenticateToken, requireRole([UserRole.STUDENT]), async (req, res) => {
+    try {
+      const updatedStudent = await AuthService.updateStudentProfile(req.user.userId, req.body);
+      res.json({ student: updatedStudent });
+    } catch (error) {
+      console.error('Update student profile error:', error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : 'Failed to update profile' 
+      });
+    }
+  });
 
   // Consultant routes
-  app.get('/api/consultants/dashboard', isAuthenticated, async (req: any, res) => {
+  app.get('/api/consultants/dashboard', authenticateToken, requireRole([UserRole.CONSULTANT]), async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const consultant = await storage.getConsultantByUserId(userId);
-      
+      const consultant = await AuthService.getConsultantProfile(req.user.userId);
       if (!consultant) {
-        return res.status(404).json({ message: "Consultant not found" });
+        return res.status(404).json({ message: 'Consultant profile not found' });
       }
 
-      // Get consultant's sessions
-      const allSessions = Array.from((storage as any).consultationSessions.values());
-      const consultantSessions = allSessions.filter((session: any) => session.consultantId === consultant.id);
-      
-      // Calculate stats
-      const totalSessions = consultantSessions.length;
-      const completedSessions = consultantSessions.filter((session: any) => session.status === 'completed');
-      
-      // Get this week's sessions
-      const now = new Date();
-      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
-      const sessionsThisWeek = consultantSessions.filter((session: any) => {
-        const sessionDate = new Date(session.scheduledStart);
-        return sessionDate >= weekStart && sessionDate < weekEnd;
-      });
+      // Get upcoming sessions
+      const { data: upcomingSessions } = await supabase
+        .from('consultation_sessions')
+        .select(`
+          *,
+          student:students(
+            *,
+            user:users(*)
+          )
+        `)
+        .eq('consultant_id', consultant.id)
+        .gte('scheduled_start', new Date().toISOString())
+        .eq('status', 'scheduled')
+        .order('scheduled_start', { ascending: true });
 
-      // Get this month's sessions for hours calculation
-      const thisMonth = consultantSessions.filter((session: any) => {
-        const sessionDate = new Date(session.scheduledStart);
-        return sessionDate.getMonth() === now.getMonth() && 
-               sessionDate.getFullYear() === now.getFullYear() &&
-               session.status === 'completed';
-      });
-
-      const hoursThisMonth = thisMonth.reduce((total: number, session: any) => {
-        return total + (session.duration || 60) / 60; // Convert minutes to hours
-      }, 0);
-
-      // Get unique students
-      const uniqueStudents = new Set(consultantSessions.map((session: any) => session.studentId));
+      // Get recent sessions
+      const { data: recentSessions } = await supabase
+        .from('consultation_sessions')
+        .select(`
+          *,
+          student:students(
+            *,
+            user:users(*)
+          )
+        `)
+        .eq('consultant_id', consultant.id)
+        .eq('status', 'completed')
+        .order('scheduled_start', { ascending: false })
+        .limit(10);
 
       res.json({
         consultant,
-        totalSessions,
-        sessionsThisWeek: sessionsThisWeek.length,
-        activeStudents: uniqueStudents.size,
-        hoursThisMonth: Math.round(hoursThisMonth),
-        upcomingSessions: consultantSessions.filter((session: any) => {
-          const sessionDate = new Date(session.scheduledStart);
-          return sessionDate > now && session.status === 'scheduled';
-        }).slice(0, 5)
+        upcomingSessions: upcomingSessions || [],
+        recentSessions: recentSessions || []
       });
     } catch (error) {
-      console.error("Error fetching consultant dashboard:", error);
-      res.status(500).json({ message: "Failed to fetch dashboard data" });
+      console.error('Consultant dashboard error:', error);
+      res.status(500).json({ message: 'Failed to load dashboard' });
     }
   });
 
-  app.get('/api/consultants', async (req, res) => {
+  app.put('/api/consultants/profile', authenticateToken, requireRole([UserRole.CONSULTANT]), async (req, res) => {
     try {
-      const consultants = await storage.getAllConsultants();
-      const consultantsWithUsers = await Promise.all(
-        consultants.map(async (consultant) => {
-          const user = await storage.getUser(consultant.userId);
-          return {
-            ...consultant,
-            user
-          };
-        })
-      );
-      res.json(consultantsWithUsers);
+      const updatedConsultant = await AuthService.updateConsultantProfile(req.user.userId, req.body);
+      res.json({ consultant: updatedConsultant });
     } catch (error) {
-      console.error("Error fetching consultants:", error);
-      res.status(500).json({ message: "Failed to fetch consultants" });
-    }
-  });
-
-  app.get('/api/consultants/:id/availability', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const availability = await storage.getConsultantAvailability(id);
-      res.json(availability);
-    } catch (error) {
-      console.error("Error fetching availability:", error);
-      res.status(500).json({ message: "Failed to fetch availability" });
+      console.error('Update consultant profile error:', error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : 'Failed to update profile' 
+      });
     }
   });
 
   // Session routes
-  app.post('/api/sessions', isAuthenticated, async (req: any, res) => {
+  app.post('/api/sessions', authenticateToken, requireRole([UserRole.STUDENT, UserRole.CONSULTANT]), async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const student = await storage.getStudentByUserId(userId);
-      
-      if (!student) {
-        return res.status(404).json({ message: "Student not found" });
+      const { studentId, consultantId, scheduledStart, scheduledEnd, sessionType, notes } = req.body;
+
+      const { data: session, error } = await supabase
+        .from('consultation_sessions')
+        .insert([{
+          student_id: studentId,
+          consultant_id: consultantId,
+          scheduled_start: scheduledStart,
+          scheduled_end: scheduledEnd,
+          session_type: sessionType,
+          notes: notes
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      const sessionData = insertConsultationSessionSchema.parse({
-        ...req.body,
-        studentId: student.id
-      });
-
-      // Create video session
-      const videoSession = await storage.createVideoSession({
-        roomId: `room_${randomUUID()}`,
-        recordingEnabled: true,
-        videoQuality: '720p',
-        technicalIssues: [],
-        sessionMetadata: {}
-      });
-
-      // Create consultation session
-      const session = await storage.createConsultationSession({
-        ...sessionData,
-        videoSessionId: videoSession.id
-      });
-
-      res.status(201).json(session);
+      res.json({ session });
     } catch (error) {
-      console.error("Error creating session:", error);
-      res.status(500).json({ message: "Failed to create session" });
+      console.error('Create session error:', error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : 'Failed to create session' 
+      });
     }
   });
 
-  app.get('/api/sessions/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/sessions/:id', authenticateToken, async (req, res) => {
     try {
-      const { id } = req.params;
-      const session = await storage.getConsultationSession(id);
-      
-      if (!session) {
-        return res.status(404).json({ message: "Session not found" });
+      const { data: session, error } = await supabase
+        .from('consultation_sessions')
+        .select(`
+          *,
+          student:students(
+            *,
+            user:users(*)
+          ),
+          consultant:consultants(
+            *,
+            user:users(*)
+          )
+        `)
+        .eq('id', req.params.id)
+        .single();
+
+      if (error || !session) {
+        return res.status(404).json({ message: 'Session not found' });
       }
 
-      // Get related data
-      const student = await storage.getStudent(session.studentId);
-      const consultant = await storage.getConsultant(session.consultantId);
-      const videoSession = session.videoSessionId ? 
-        await storage.getVideoSession(session.videoSessionId) : null;
+      res.json({ session });
+    } catch (error) {
+      console.error('Get session error:', error);
+      res.status(500).json({ message: 'Failed to get session' });
+    }
+  });
 
-      const studentUser = student ? await storage.getUser(student.userId) : null;
-      const consultantUser = consultant ? await storage.getUser(consultant.userId) : null;
+  app.put('/api/sessions/:id', authenticateToken, requireRole([UserRole.CONSULTANT]), async (req, res) => {
+    try {
+      const { data: session, error } = await supabase
+        .from('consultation_sessions')
+        .update(req.body)
+        .eq('id', req.params.id)
+        .select()
+        .single();
 
-      res.json({
-        ...session,
-        student: student ? { ...student, user: studentUser } : null,
-        consultant: consultant ? { ...consultant, user: consultantUser } : null,
-        videoSession
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      res.json({ session });
+    } catch (error) {
+      console.error('Update session error:', error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : 'Failed to update session' 
       });
-    } catch (error) {
-      console.error("Error fetching session:", error);
-      res.status(500).json({ message: "Failed to fetch session" });
-    }
-  });
-
-  app.patch('/api/sessions/:id', isAuthenticated, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body;
-      
-      const session = await storage.updateConsultationSession(id, updates);
-      res.json(session);
-    } catch (error) {
-      console.error("Error updating session:", error);
-      res.status(500).json({ message: "Failed to update session" });
-    }
-  });
-
-  // Video session routes
-  app.get('/api/video-sessions/:roomId', isAuthenticated, async (req, res) => {
-    try {
-      const { roomId } = req.params;
-      const videoSessions = Array.from((storage as any).videoSessions.values());
-      const videoSession = videoSessions.find((vs: any) => vs.roomId === roomId);
-      
-      if (!videoSession) {
-        return res.status(404).json({ message: "Video session not found" });
-      }
-
-      res.json(videoSession);
-    } catch (error) {
-      console.error("Error fetching video session:", error);
-      res.status(500).json({ message: "Failed to fetch video session" });
     }
   });
 
   // Admin routes
-  app.get('/api/admin/dashboard', isAuthenticated, async (req, res) => {
+  app.get('/api/admin/dashboard', authenticateToken, requireRole([UserRole.ADMIN]), async (req, res) => {
     try {
-      const students = await storage.getAllStudents();
-      const consultants = await storage.getAllConsultants();
-      
-      // Calculate stats
-      const activeStudents = students.filter(s => s.certificationStatus === 'in_progress').length;
-      const completedCertifications = students.filter(s => s.certificationStatus === 'completed').length;
+      // Get system statistics
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, certification_status');
+
+      const { data: consultants } = await supabase
+        .from('consultants')
+        .select('id, is_active');
+
+      const { data: sessions } = await supabase
+        .from('consultation_sessions')
+        .select('id, scheduled_start, status');
+
+      const activeStudents = students?.filter(s => s.certification_status === 'in_progress').length || 0;
+      const completedCertifications = students?.filter(s => s.certification_status === 'completed').length || 0;
+      const activeConsultants = consultants?.filter(c => c.is_active).length || 0;
       
       // Get this week's sessions
       const now = new Date();
       const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
       const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
       
-      const allSessions = Array.from((storage as any).consultationSessions.values());
-      const sessionsThisWeek = allSessions.filter((session: any) => {
-        const sessionDate = new Date(session.scheduledStart);
+      const sessionsThisWeek = sessions?.filter(session => {
+        const sessionDate = new Date(session.scheduled_start);
         return sessionDate >= weekStart && sessionDate < weekEnd;
-      }).length;
+      }).length || 0;
 
       res.json({
         activeStudents,
-        consultants: consultants.length,
+        activeConsultants,
         sessionsThisWeek,
         completedCertifications,
+        totalStudents: students?.length || 0,
+        totalConsultants: consultants?.length || 0,
+        totalSessions: sessions?.length || 0,
         systemUptime: 99.8
       });
     } catch (error) {
-      console.error("Error fetching admin dashboard:", error);
-      res.status(500).json({ message: "Failed to fetch admin dashboard" });
+      console.error('Admin dashboard error:', error);
+      res.status(500).json({ message: 'Failed to load admin dashboard' });
     }
   });
 
-  app.get('/api/admin/students', isAuthenticated, async (req, res) => {
+  app.get('/api/admin/students', authenticateToken, requireRole([UserRole.ADMIN]), async (req, res) => {
     try {
-      const students = await storage.getAllStudents();
-      const studentsWithUsers = await Promise.all(
-        students.map(async (student) => {
-          const user = await storage.getUser(student.userId);
-          return { ...student, user };
-        })
-      );
-      res.json(studentsWithUsers);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      res.status(500).json({ message: "Failed to fetch students" });
-    }
-  });
+      const { data: students, error } = await supabase
+        .from('students')
+        .select(`
+          *,
+          user:users(*)
+        `)
+        .order('created_at', { ascending: false });
 
-  app.get('/api/admin/consultants', isAuthenticated, async (req, res) => {
-    try {
-      const consultants = await storage.getAllConsultants();
-      const consultantsWithUsers = await Promise.all(
-        consultants.map(async (consultant) => {
-          const user = await storage.getUser(consultant.userId);
-          return { ...consultant, user };
-        })
-      );
-      res.json(consultantsWithUsers);
-    } catch (error) {
-      console.error("Error fetching consultants:", error);
-      res.status(500).json({ message: "Failed to fetch consultants" });
-    }
-  });
-
-  app.get('/api/admin/sessions', isAuthenticated, async (req, res) => {
-    try {
-      const sessions = await storage.getAllConsultationSessions();
-      res.json(sessions);
-    } catch (error) {
-      console.error("Error fetching sessions:", error);
-      res.status(500).json({ message: "Failed to fetch sessions" });
-    }
-  });
-
-  app.post('/api/admin/certifications/:studentId/approve', isAuthenticated, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      
-      // Update student certification status
-      const student = await storage.getStudent(studentId);
-      if (!student) {
-        return res.status(404).json({ message: "Student not found" });
+      if (error) {
+        throw new Error(error.message);
       }
 
-      // In a real implementation, this would:
-      // 1. Generate PDF certificate
-      // 2. Send email with certificate
-      // 3. Update student record
-      // 4. Log the certification event
-
-      // Mock implementation - just update status
-      await storage.updateStudent(studentId, {
-        certificationStatus: 'completed',
-        updatedAt: new Date()
-      });
-
-      res.json({ message: "Certification approved and sent" });
+      res.json(students || []);
     } catch (error) {
-      console.error("Error approving certification:", error);
-      res.status(500).json({ message: "Failed to approve certification" });
+      console.error('Get students error:', error);
+      res.status(500).json({ message: 'Failed to get students' });
     }
   });
 
-  app.post('/api/admin/payments/consultants/:consultantId', isAuthenticated, async (req, res) => {
+  app.get('/api/admin/consultants', authenticateToken, requireRole([UserRole.ADMIN]), async (req, res) => {
     try {
-      const { consultantId } = req.params;
-      const { amount } = req.body;
+      const { data: consultants, error } = await supabase
+        .from('consultants')
+        .select(`
+          *,
+          user:users(*)
+        `)
+        .order('created_at', { ascending: false });
 
-      // In a real implementation, this would integrate with Stripe/PayPal
-      // For now, we'll mock the payment process
-      
-      // Mock payment processing delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Log payment (in real implementation, store in payments table)
-      console.log(`Processing payment of $${amount} to consultant ${consultantId}`);
-
-      res.json({ 
-        message: "Payment processed successfully",
-        transactionId: `txn_${Date.now()}`,
-        amount: amount
-      });
-    } catch (error) {
-      console.error("Error processing payment:", error);
-      res.status(500).json({ message: "Failed to process payment" });
-    }
-  });
-
-  // Mock Kajabi webhook
-  app.post('/api/webhooks/kajabi', async (req, res) => {
-    try {
-      const { user_id, email, first_name, last_name, course_completed } = req.body;
-      
-      if (course_completed) {
-        // Create user if not exists
-        const user = await storage.upsertUser({
-          id: `kajabi_${user_id}`,
-          email,
-          firstName: first_name,
-          lastName: last_name,
-          profileImageUrl: null
-        });
-
-        // Create student profile
-        await storage.createStudent({
-          userId: user.id,
-          kajabiUserId: user_id,
-          phone: null,
-          timezone: 'UTC',
-          courseCompletionDate: new Date(),
-          totalVerifiedHours: '0',
-          certificationStatus: 'in_progress',
-          preferredSessionLength: 60,
-          consultationPreferences: {}
-        });
-
-        res.json({ message: "Student created successfully" });
-      } else {
-        res.json({ message: "Course not completed yet" });
+      if (error) {
+        throw new Error(error.message);
       }
+
+      res.json(consultants || []);
     } catch (error) {
-      console.error("Error processing Kajabi webhook:", error);
-      res.status(500).json({ message: "Failed to process webhook" });
+      console.error('Get consultants error:', error);
+      res.status(500).json({ message: 'Failed to get consultants' });
     }
   });
 
-  const httpServer = createServer(app);
+  // Video session routes
+  app.post('/api/video-sessions', authenticateToken, async (req, res) => {
+    try {
+      const { roomId, recordingEnabled = false } = req.body;
+
+      const { data: videoSession, error } = await supabase
+        .from('video_sessions')
+        .insert([{
+          room_id: roomId,
+          recording_enabled: recordingEnabled
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      res.json({ videoSession });
+    } catch (error) {
+      console.error('Create video session error:', error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : 'Failed to create video session' 
+      });
+    }
+  });
 
   // WebSocket server for real-time communication
+  const httpServer = createServer(app);
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  // Video room management
+  const videoRooms = new Map<string, Set<WebSocket>>();
+  const wsToRooms = new Map<WebSocket, string>();
 
   wss.on('connection', (ws: WebSocket, req) => {
     console.log('WebSocket connection established');
@@ -503,20 +413,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const data = JSON.parse(message);
         
-        // Handle different message types
         switch (data.type) {
           case 'join_video_session':
-            // Handle joining video session
+            const roomId = data.roomId;
+            const participantId = data.participantId || randomUUID();
+            
+            // Add to room
+            if (!videoRooms.has(roomId)) {
+              videoRooms.set(roomId, new Set());
+            }
+            videoRooms.get(roomId)!.add(ws);
+            wsToRooms.set(ws, roomId);
+            
+            // Send confirmation
             ws.send(JSON.stringify({
               type: 'video_session_joined',
-              roomId: data.roomId,
-              participantId: randomUUID()
+              roomId: roomId,
+              participantId: participantId
             }));
+            
+            // Notify other participants
+            videoRooms.get(roomId)!.forEach((client) => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'participant_joined',
+                  participantId: participantId,
+                  roomId: roomId
+                }));
+              }
+            });
             break;
             
           case 'webrtc_signal':
-            // Relay WebRTC signaling messages
-            wss.clients.forEach((client) => {
+            // Relay WebRTC signaling to other participants in the room
+            const signalRoomId = data.roomId;
+            const room = videoRooms.get(signalRoomId);
+            if (room) {
+              room.forEach((client) => {
               if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify({
                   type: 'webrtc_signal',
@@ -526,6 +459,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }));
               }
             });
+            }
+            break;
+            
+          case 'leave_video_session':
+            const leaveRoomId = wsToRooms.get(ws);
+            if (leaveRoomId) {
+              const leaveRoom = videoRooms.get(leaveRoomId);
+              if (leaveRoom) {
+                leaveRoom.delete(ws);
+                if (leaveRoom.size === 0) {
+                  videoRooms.delete(leaveRoomId);
+                }
+              }
+              wsToRooms.delete(ws);
+            }
+            break;
+            
+          case 'ping':
+            ws.send(JSON.stringify({ type: 'pong' }));
             break;
             
           default:
@@ -538,6 +490,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     ws.on('close', () => {
       console.log('WebSocket connection closed');
+      // Clean up video room membership
+      const roomId = wsToRooms.get(ws);
+      if (roomId) {
+        const room = videoRooms.get(roomId);
+        if (room) {
+          room.delete(ws);
+          if (room.size === 0) {
+            videoRooms.delete(roomId);
+          }
+        }
+        wsToRooms.delete(ws);
+      }
     });
 
     ws.on('error', (error) => {

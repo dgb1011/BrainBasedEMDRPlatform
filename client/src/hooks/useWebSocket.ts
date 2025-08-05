@@ -28,6 +28,7 @@ export function useWebSocket(url?: string) {
         try {
           const message = JSON.parse(event.data);
           setLastMessage(message);
+          console.log('WebSocket message received:', message);
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
