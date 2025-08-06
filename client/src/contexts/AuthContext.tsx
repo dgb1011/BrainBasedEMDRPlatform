@@ -111,20 +111,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Listen for auth state changes
-    const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await refreshUser();
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Listen for auth state changes
+        const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
+          if (!mounted) return;
+          
+          if (event === 'SIGNED_IN' && session?.user) {
+            await refreshUser();
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+          }
+          setLoading(false);
+        });
+
+        // Initial load with timeout protection
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth initialization timeout')), 5000)
+        );
+
+        await Promise.race([
+          refreshUser(),
+          timeoutPromise
+        ]);
+
+        if (mounted) {
+          setLoading(false);
+        }
+
+        return () => subscription.unsubscribe();
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    };
 
-    // Initial load
-    refreshUser().finally(() => setLoading(false));
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const value = {

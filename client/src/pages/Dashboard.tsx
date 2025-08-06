@@ -3,9 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import ProgressCircle from '@/components/ProgressCircle';
-import SessionCard from '@/components/SessionCard';
-import CalendarView from '@/components/CalendarView';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import Navigation from '@/components/layout/Navigation';
 import { 
   Calendar, 
@@ -18,7 +22,20 @@ import {
   Award,
   AlertCircle,
   CheckCircle,
-  User
+  User,
+  Play,
+  Pause,
+  BookOpen,
+  Target,
+  Star,
+  ChevronRight,
+  Plus,
+  MoreHorizontal,
+  Bell,
+  Settings,
+  BarChart3,
+  FileText,
+  MessageSquare
 } from 'lucide-react';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -69,17 +86,91 @@ export default function Dashboard() {
     });
   };
 
+  // Mock data for demonstration
+  const mockDashboardData = {
+    student: {
+      name: "Sarah Johnson",
+      email: "sarah.johnson@email.com",
+      progress: 67.5, // 27/40 hours
+      hoursCompleted: 27,
+      totalHours: 40,
+      certificationStatus: "in_progress",
+      nextMilestone: "30 hours",
+      currentConsultant: "Dr. Emily Chen",
+      profileImage: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+    },
+    upcomingSessions: [
+      {
+        id: 'session-1',
+        consultantName: 'Dr. Emily Chen',
+        consultantImage: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+        scheduledStart: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        scheduledEnd: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        sessionType: 'consultation',
+        status: 'confirmed',
+        notes: 'Working on bilateral stimulation techniques'
+      },
+      {
+        id: 'session-2',
+        consultantName: 'Dr. Michael Torres',
+        consultantImage: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=face',
+        scheduledStart: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        scheduledEnd: new Date(Date.now() + 25 * 60 * 60 * 1000),
+        sessionType: 'practice',
+        status: 'pending',
+        notes: 'Final evaluation session'
+      }
+    ],
+    recentSessions: [
+      {
+        id: 'completed-1',
+        consultantName: 'Dr. Emily Chen',
+        completedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        duration: 1.5,
+        rating: 5,
+        sessionType: 'consultation',
+        notes: 'Excellent progress on trauma processing'
+      }
+    ],
+    milestones: [
+      { id: 1, title: "10 Hours Completed", achieved: true, date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      { id: 2, title: "20 Hours Completed", achieved: true, date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) },
+      { id: 3, title: "30 Hours Completed", achieved: false, targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      { id: 4, title: "40 Hours Completed", achieved: false, targetDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000) }
+    ],
+    quickActions: [
+      { id: 1, title: "Book Session", icon: Calendar, color: "bg-blue-500", href: "/schedule" },
+      { id: 2, title: "View Progress", icon: BarChart3, color: "bg-green-500", href: "/progress" },
+      { id: 3, title: "Upload Documents", icon: FileText, color: "bg-purple-500", href: "/documents" },
+      { id: 4, title: "Contact Support", icon: MessageSquare, color: "bg-orange-500", href: "/support" }
+    ]
+  };
+
+  const data = dashboardData || mockDashboardData;
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-surface">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <Navigation />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse space-y-8">
-            <div className="h-24 bg-gray-200 rounded-lg"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
-              ))}
+          <div className="space-y-8">
+            {/* Header Skeleton */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+              <Skeleton className="h-10 w-32" />
+            </div>
+            
+            {/* Progress Card Skeleton */}
+            <Skeleton className="h-32 w-full rounded-xl" />
+            
+            {/* Grid Skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Skeleton className="h-96 rounded-xl" />
+              <Skeleton className="h-96 rounded-xl" />
+              <Skeleton className="h-96 rounded-xl" />
             </div>
           </div>
         </div>
@@ -87,248 +178,300 @@ export default function Dashboard() {
     );
   }
 
-  if (!dashboardData) {
+  if (!data) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <h2 className="text-xl font-semibold mb-2">No Data Available</h2>
-            <p className="text-text-secondary">Unable to load dashboard data.</p>
+            <p className="text-muted-foreground">Unable to load dashboard data.</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const { student, upcomingSessions, progress } = dashboardData;
-  const adminData_safe = adminData || {};
-
-  // Mock available slots for calendar
-  const availableSlots = {
-    '2024-01-30': [
-      { time: '10:00 AM', consultant: 'Dr. Emily Chen', consultantId: 'consultant-1', available: true },
-      { time: '2:00 PM', consultant: 'Dr. Michael Torres', consultantId: 'consultant-2', available: true },
-    ],
-    '2024-01-31': [
-      { time: '11:00 AM', consultant: 'Dr. Sarah Kim', consultantId: 'consultant-3', available: true },
-      { time: '3:00 PM', consultant: 'Dr. Emily Chen', consultantId: 'consultant-1', available: true },
-    ]
-  };
-
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Navigation />
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-text-primary mb-2">
-            Welcome back, {student?.user?.firstName || 'Student'}!
-          </h2>
-          <p className="text-text-secondary">
-            Track your EMDR certification progress and manage your consultation sessions.
-          </p>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome back, {data.student.name}! 👋
+            </h1>
+            <p className="text-gray-600">
+              You're making great progress on your EMDR certification journey
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm">
+              <Bell className="h-4 w-4 mr-2" />
+              Notifications
+            </Button>
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
 
-        {/* Progress Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    {progress?.totalHours || 0} / 40
-                  </h3>
-                  <p className="text-text-secondary">Hours Completed</p>
-                </div>
-                <ProgressCircle 
-                  percentage={progress?.percentage || 0} 
-                  size={60} 
-                  strokeWidth={6}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="bg-blue-100 rounded-full p-3 mr-4">
-                  <Clock className="text-blue-600 h-6 w-6" />
+        {/* Progress Overview Card */}
+        <Card className="mb-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0 shadow-xl">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                    <GraduationCap className="h-8 w-8" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
+                    <CheckCircle className="h-3 w-3 text-white" />
+                  </div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    {progress?.remainingHours || 40}
-                  </h3>
-                  <p className="text-text-secondary">Hours Remaining</p>
+                  <h2 className="text-xl font-semibold">Certification Progress</h2>
+                  <p className="text-blue-100">
+                    {data.student.hoursCompleted} of {data.student.totalHours} hours completed
+                  </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="bg-green-100 rounded-full p-3 mr-4">
-                  <CheckCircle className="text-green-600 h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    {progress?.completedSessions || 0}
-                  </h3>
-                  <p className="text-text-secondary">Sessions Completed</p>
-                </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">{data.student.progress}%</div>
+                <div className="text-blue-100">Complete</div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="bg-purple-100 rounded-full p-3 mr-4">
-                  <Award className="text-purple-600 h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    {student?.certificationStatus === 'completed' ? 'Complete' : 'In Progress'}
-                  </h3>
-                  <p className="text-text-secondary">Certification Status</p>
-                </div>
+            </div>
+            
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Progress to next milestone</span>
+                <span className="text-sm text-blue-100">{data.student.nextMilestone}</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Progress value={data.student.progress} className="h-3 bg-white/20" />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Upcoming Sessions */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Upcoming Sessions */}
-            <Card className="bg-white">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Video className="h-5 w-5 mr-2 text-primary" />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Quick Actions & Milestones */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <Activity className="h-5 w-5 mr-2 text-blue-600" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {data.quickActions.map((action) => (
+                  <Link key={action.id} href={action.href}>
+                    <Button variant="ghost" className="w-full justify-start h-12 hover:bg-gray-50">
+                      <div className={`w-8 h-8 rounded-lg ${action.color} flex items-center justify-center mr-3`}>
+                        <action.icon className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="font-medium">{action.title}</span>
+                      <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
+                    </Button>
+                  </Link>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Milestones */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <Award className="h-5 w-5 mr-2 text-green-600" />
+                  Milestones
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {data.milestones.map((milestone) => (
+                  <div key={milestone.id} className="flex items-center space-x-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      milestone.achieved ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {milestone.achieved ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <Target className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${
+                        milestone.achieved ? 'text-gray-900' : 'text-gray-600'
+                      }`}>
+                        {milestone.title}
+                      </p>
+                      {milestone.achieved && milestone.date && (
+                        <p className="text-xs text-gray-500">
+                          Completed {milestone.date.toLocaleDateString()}
+                        </p>
+                      )}
+                      {!milestone.achieved && milestone.targetDate && (
+                        <p className="text-xs text-gray-500">
+                          Target: {milestone.targetDate.toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Center Column - Upcoming Sessions */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center justify-between text-lg font-semibold">
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-purple-600" />
                   Upcoming Sessions
+                </div>
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Book New
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-80">
+                <div className="space-y-4">
+                  {data.upcomingSessions.map((session) => (
+                    <div key={session.id} className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={session.consultantImage} />
+                        <AvatarFallback>
+                          {session.consultantName.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-semibold text-gray-900 truncate">
+                            {session.consultantName}
+                          </h4>
+                          <Badge variant={session.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs">
+                            {session.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {session.scheduledStart.toLocaleDateString()} at {session.scheduledStart.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {session.sessionType} • {session.notes}
+                        </p>
+                      </div>
+                      <Button size="sm" onClick={() => handleJoinSession(session.id)}>
+                        <Play className="h-3 w-3 mr-1" />
+                        Join
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Right Column - Recent Activity & Stats */}
+          <div className="space-y-6">
+            {/* Current Consultant */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <User className="h-5 w-5 mr-2 text-indigo-600" />
+                  Your Consultant
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {upcomingSessions && upcomingSessions.length > 0 ? (
-                  <div className="space-y-4">
-                    {upcomingSessions.map((session: any) => (
-                      <SessionCard
-                        key={session.id}
-                        session={{
-                          id: session.id,
-                          consultantName: session.consultantName || 'Unknown Consultant',
-                          scheduledStart: new Date(session.scheduledStart),
-                          scheduledEnd: new Date(session.scheduledEnd),
-                          status: session.status,
-                          sessionType: session.sessionType
-                        }}
-                        onJoin={handleJoinSession}
-                        onReschedule={handleRescheduleSession}
-                      />
-                    ))}
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face" />
+                    <AvatarFallback>EC</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{data.student.currentConsultant}</h4>
+                    <p className="text-sm text-gray-600">EMDR Specialist</p>
+                    <div className="flex items-center mt-1">
+                      <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                      <span className="text-xs text-gray-600 ml-1">4.9 (127 reviews)</span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-medium text-text-primary mb-2">
-                      No upcoming sessions
-                    </h3>
-                    <p className="text-text-secondary mb-4">
-                      Schedule your next consultation session to continue your certification journey.
-                    </p>
-                    <Link href="/schedule">
-                      <Button className="bg-primary hover:bg-blue-700 text-white">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Schedule Session
-                      </Button>
-                    </Link>
-                  </div>
-                )}
+                  <Button variant="outline" size="sm">
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Message
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Admin Overview (if admin data is available) */}
-            {adminData_safe && Object.keys(adminData_safe).length > 0 && (
-              <Card className="bg-white">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <TrendingUp className="h-5 w-5 mr-2 text-primary" />
-                    Platform Overview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">
-                        {adminData_safe.activeStudents || 0}
-                      </div>
-                      <div className="text-sm text-text-secondary">Active Students</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-accent">
-                        {adminData_safe.sessionsThisWeek || 0}
-                      </div>
-                      <div className="text-sm text-text-secondary">Sessions This Week</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-secondary">
-                        {adminData_safe.completedCertifications || 0}
-                      </div>
-                      <div className="text-sm text-text-secondary">Certifications</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {adminData_safe.systemUptime || 99}%
-                      </div>
-                      <div className="text-sm text-text-secondary">System Uptime</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Right Column - Calendar */}
-          <div className="space-y-6">
-            <CalendarView
-              selectedDate={selectedCalendarDate}
-              onDateSelect={setSelectedCalendarDate}
-              onSlotSelect={handleSlotSelect}
-              availableSlots={availableSlots}
-            />
-
-            {/* Quick Actions */}
-            <Card className="bg-white">
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+            {/* Recent Sessions */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <Clock className="h-5 w-5 mr-2 text-orange-600" />
+                  Recent Sessions
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Link href="/schedule" className="block">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Schedule New Session
-                  </Button>
-                </Link>
-                <Link href="/progress" className="block">
-                  <Button variant="outline" className="w-full justify-start">
-                    <GraduationCap className="h-4 w-4 mr-2" />
-                    View Progress
-                  </Button>
-                </Link>
-                <Link href="/sessions" className="block">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Users className="h-4 w-4 mr-2" />
-                    Session History
-                  </Button>
-                </Link>
+              <CardContent>
+                <div className="space-y-3">
+                  {data.recentSessions.map((session) => (
+                    <div key={session.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {session.consultantName}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {session.completedDate.toLocaleDateString()} • {session.duration}h
+                        </p>
+                      </div>
+                      <div className="flex items-center">
+                        <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                        <span className="text-xs text-gray-600 ml-1">{session.rating}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats Overview */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+                  This Week
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">3</div>
+                    <div className="text-xs text-gray-600">Sessions</div>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">4.5h</div>
+                    <div className="text-xs text-gray-600">Hours</div>
+                  </div>
+                </div>
+                <Separator />
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-900">Next Session</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Tomorrow at 2:00 PM with Dr. Chen
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

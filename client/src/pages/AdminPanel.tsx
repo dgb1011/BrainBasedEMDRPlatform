@@ -3,7 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Users, 
@@ -16,7 +21,23 @@ import {
   CheckCircle,
   AlertTriangle,
   DollarSign,
-  UserCheck
+  UserCheck,
+  Activity,
+  Award,
+  Target,
+  Star,
+  ChevronRight,
+  Plus,
+  MoreHorizontal,
+  Bell,
+  Shield,
+  Database,
+  Globe,
+  Zap,
+  Eye,
+  MessageSquare,
+  FileText,
+  CreditCard
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { format } from 'date-fns';
@@ -40,25 +61,101 @@ export default function AdminPanel() {
       totalSessions: 2456,
       completedSessions: 2234,
       totalRevenue: 284650,
-      monthlyRevenue: 28940
+      monthlyRevenue: 28940,
+      systemHealth: 98.5,
+      activeUsers: 67
     },
     recentActivities: [
-      { id: 1, type: 'certification', message: 'John Doe completed EMDR certification', timestamp: new Date() },
-      { id: 2, type: 'session', message: 'New session scheduled between Sarah Wilson and Dr. Chen', timestamp: new Date() },
-      { id: 3, type: 'consultant', message: 'Dr. Michael Torres updated availability', timestamp: new Date() },
-      { id: 4, type: 'payment', message: 'Payment processed for consultation #1234', timestamp: new Date() },
+      { 
+        id: 1, 
+        type: 'certification', 
+        message: 'John Doe completed EMDR certification', 
+        timestamp: new Date(),
+        user: 'John Doe',
+        userImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+        priority: 'high'
+      },
+      { 
+        id: 2, 
+        type: 'session', 
+        message: 'New session scheduled between Sarah Wilson and Dr. Chen', 
+        timestamp: new Date(Date.now() - 30 * 60 * 1000),
+        user: 'Sarah Wilson',
+        userImage: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+        priority: 'medium'
+      },
+      { 
+        id: 3, 
+        type: 'consultant', 
+        message: 'Dr. Michael Torres updated availability', 
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        user: 'Dr. Michael Torres',
+        userImage: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=face',
+        priority: 'low'
+      },
+      { 
+        id: 4, 
+        type: 'payment', 
+        message: 'Payment processed for consultation #1234', 
+        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+        user: 'System',
+        userImage: null,
+        priority: 'medium'
+      },
     ],
     pendingApprovals: [
-      { id: 1, type: 'consultant', name: 'Dr. Lisa Rodriguez', item: 'Application Review', priority: 'high' },
-      { id: 2, type: 'certification', name: 'Mike Johnson', item: 'Final Certification', priority: 'medium' },
-      { id: 3, type: 'session', name: 'Session #5678', item: 'Dispute Resolution', priority: 'low' },
+      { 
+        id: 1, 
+        type: 'consultant', 
+        name: 'Dr. Lisa Rodriguez', 
+        item: 'Application Review', 
+        priority: 'high',
+        submittedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        userImage: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face'
+      },
+      { 
+        id: 2, 
+        type: 'certification', 
+        name: 'Mike Johnson', 
+        item: 'Final Certification', 
+        priority: 'medium',
+        submittedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        userImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face'
+      },
+      { 
+        id: 3, 
+        type: 'session', 
+        name: 'Session #5678', 
+        item: 'Dispute Resolution', 
+        priority: 'low',
+        submittedDate: new Date(Date.now() - 12 * 60 * 60 * 1000),
+        userImage: null
+      },
     ],
     monthlyStats: {
       newStudents: 23,
       completedCertifications: 12,
       averageSessionRating: 4.8,
-      consultantUtilization: 76
-    }
+      consultantUtilization: 76,
+      systemUptime: 99.9,
+      activeSessions: 15,
+      pendingReviews: 8,
+      revenueGrowth: 12.5
+    },
+    systemMetrics: {
+      cpuUsage: 45,
+      memoryUsage: 62,
+      diskUsage: 78,
+      networkTraffic: 34,
+      activeConnections: 156,
+      errorRate: 0.02
+    },
+    quickActions: [
+      { id: 1, title: "Add Consultant", icon: UserCheck, color: "bg-blue-500", action: "add-consultant" },
+      { id: 2, title: "System Settings", icon: Settings, color: "bg-purple-500", action: "settings" },
+      { id: 3, title: "View Reports", icon: BarChart3, color: "bg-green-500", action: "reports" },
+      { id: 4, title: "Support Tickets", icon: MessageSquare, color: "bg-orange-500", action: "support" }
+    ]
   };
 
   const data = adminData || mockAdminData;
@@ -89,247 +186,434 @@ export default function AdminPanel() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-200';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'low':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-8">
+            {/* Header Skeleton */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+              <Skeleton className="h-10 w-32" />
+            </div>
+            
+            {/* Stats Cards Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-32 rounded-xl" />
+              ))}
+            </div>
+            
+            {/* Content Skeleton */}
+            <Skeleton className="h-96 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Manage your EMDR certification platform operations.</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Admin Dashboard
+            </h1>
+            <p className="text-gray-600">
+              System overview and management for BrainBased EMDR Platform
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm">
+              <Bell className="h-4 w-4 mr-2" />
+              Notifications
+            </Button>
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
+        </div>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Students</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.totalStudents}</p>
-                <p className="text-xs text-green-600">+{data.monthlyStats.newStudents} this month</p>
+        {/* Stats Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Total Users</p>
+                  <p className="text-2xl font-bold">{data.overview.totalStudents + data.overview.totalConsultants}</p>
+                  <p className="text-blue-100 text-sm">{data.overview.activeUsers} active now</p>
+                </div>
+                <Users className="h-8 w-8 text-blue-200" />
               </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <Users className="h-6 w-6 text-blue-600" />
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-green-500 to-green-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Sessions</p>
+                  <p className="text-2xl font-bold">{data.overview.totalSessions}</p>
+                  <p className="text-green-100 text-sm">{data.overview.completedSessions} completed</p>
+                </div>
+                <Calendar className="h-8 w-8 text-green-200" />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">Revenue</p>
+                  <p className="text-2xl font-bold">${(data.overview.totalRevenue / 1000).toFixed(0)}k</p>
+                  <p className="text-purple-100 text-sm">${data.overview.monthlyRevenue} this month</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-purple-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm font-medium">System Health</p>
+                  <p className="text-2xl font-bold">{data.overview.systemHealth}%</p>
+                  <p className="text-orange-100 text-sm">All systems operational</p>
+                </div>
+                <Shield className="h-8 w-8 text-orange-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="approvals">Approvals</TabsTrigger>
+            <TabsTrigger value="system">System</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Quick Actions */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-lg font-semibold">
+                    <Zap className="h-5 w-5 mr-2 text-blue-600" />
+                    Quick Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {data.quickActions.map((action) => (
+                    <Button 
+                      key={action.id} 
+                      variant="ghost" 
+                      className="w-full justify-start h-12 hover:bg-gray-50"
+                      onClick={() => {
+                        toast({
+                          title: action.title,
+                          description: `${action.title} functionality would be implemented here.`,
+                        });
+                      }}
+                    >
+                      <div className={`w-8 h-8 rounded-lg ${action.color} flex items-center justify-center mr-3`}>
+                        <action.icon className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="font-medium">{action.title}</span>
+                      <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Monthly Stats */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-lg font-semibold">
+                    <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
+                    Monthly Stats
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-lg font-bold text-blue-600">{data.monthlyStats.newStudents}</div>
+                      <div className="text-xs text-gray-600">New Students</div>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-lg font-bold text-green-600">{data.monthlyStats.completedCertifications}</div>
+                      <div className="text-xs text-gray-600">Certifications</div>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Consultant Utilization</span>
+                      <span className="text-sm text-gray-600">{data.monthlyStats.consultantUtilization}%</span>
+                    </div>
+                    <Progress value={data.monthlyStats.consultantUtilization} className="h-2" />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Revenue Growth</span>
+                    <span className="font-medium text-green-600">+{data.monthlyStats.revenueGrowth}%</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* System Metrics */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-lg font-semibold">
+                    <Database className="h-5 w-5 mr-2 text-purple-600" />
+                    System Metrics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">CPU Usage</span>
+                      <span className="text-sm text-gray-600">{data.systemMetrics.cpuUsage}%</span>
+                    </div>
+                    <Progress value={data.systemMetrics.cpuUsage} className="h-2" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Memory Usage</span>
+                      <span className="text-sm text-gray-600">{data.systemMetrics.memoryUsage}%</span>
+                    </div>
+                    <Progress value={data.systemMetrics.memoryUsage} className="h-2" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Disk Usage</span>
+                      <span className="text-sm text-gray-600">{data.systemMetrics.diskUsage}%</span>
+                    </div>
+                    <Progress value={data.systemMetrics.diskUsage} className="h-2" />
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                      <div className="text-lg font-bold text-blue-600">{data.systemMetrics.activeConnections}</div>
+                      <div className="text-xs text-gray-600">Active Connections</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-green-600">{(data.systemMetrics.errorRate * 100).toFixed(2)}%</div>
+                      <div className="text-xs text-gray-600">Error Rate</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Active Consultants</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.activeConsultants}</p>
-                <p className="text-xs text-gray-500">of {data.overview.totalConsultants} total</p>
-              </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <UserCheck className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Sessions</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.totalSessions}</p>
-                <p className="text-xs text-gray-500">{data.overview.completedSessions} completed</p>
-              </div>
-              <div className="bg-purple-100 rounded-full p-3">
-                <Calendar className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Monthly Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">${data.overview.monthlyRevenue.toLocaleString()}</p>
-                <p className="text-xs text-green-600">+12% vs last month</p>
-              </div>
-              <div className="bg-orange-100 rounded-full p-3">
-                <DollarSign className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="consultants">Consultants</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Activities */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
-                  Recent Activities
+          <TabsContent value="activity" className="space-y-6">
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <Activity className="h-5 w-5 mr-2 text-blue-600" />
+                  Recent Activity
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {data.recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="mt-1">
-                        {getActivityIcon(activity.type)}
+                <ScrollArea className="h-96">
+                  <div className="space-y-4">
+                    {data.recentActivities.map((activity) => (
+                      <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        {activity.userImage ? (
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={activity.userImage} />
+                            <AvatarFallback>
+                              {activity.user.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                            {getActivityIcon(activity.type)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-sm font-semibold text-gray-900">
+                              {activity.user}
+                            </h4>
+                            <Badge className={`text-xs ${getPriorityColor(activity.priority)}`}>
+                              {activity.priority}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-1">
+                            {activity.message}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {format(activity.timestamp, 'MMM dd, yyyy HH:mm')}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                        <p className="text-xs text-gray-500">{format(activity.timestamp, 'MMM d, h:mm a')}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* Pending Approvals */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
+          <TabsContent value="approvals" className="space-y-6">
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
                   Pending Approvals
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {data.pendingApprovals.map((approval) => (
-                    <div key={approval.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm font-medium text-gray-900">{approval.name}</p>
-                          <Badge className={getPriorityColor(approval.priority)}>
-                            {approval.priority.toUpperCase()}
-                          </Badge>
+                <ScrollArea className="h-96">
+                  <div className="space-y-4">
+                    {data.pendingApprovals.map((approval) => (
+                      <div key={approval.id} className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                        {approval.userImage ? (
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={approval.userImage} />
+                            <AvatarFallback>
+                              {approval.name.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-sm font-semibold text-gray-900">
+                              {approval.name}
+                            </h4>
+                            <Badge className={`text-xs ${getPriorityColor(approval.priority)}`}>
+                              {approval.priority}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-1">
+                            {approval.item}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Submitted {format(approval.submittedDate, 'MMM dd, yyyy')}
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-500">{approval.item}</p>
+                        <div className="flex space-x-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleApproval(approval.id, true)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Approve
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleApproval(approval.id, false)}
+                          >
+                            Reject
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleApproval(approval.id, false)}
-                        >
-                          Reject
-                        </Button>
-                        <Button 
-                          size="sm"
-                          onClick={() => handleApproval(approval.id, true)}
-                        >
-                          Approve
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="students" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-blue-50 rounded-lg">
-                  <Users className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                  <h3 className="font-semibold text-blue-900">Active Students</h3>
-                  <p className="text-2xl font-bold text-blue-800">{data.overview.activeStudents}</p>
-                </div>
-                <div className="text-center p-6 bg-green-50 rounded-lg">
-                  <GraduationCap className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                  <h3 className="font-semibold text-green-900">Certifications</h3>
-                  <p className="text-2xl font-bold text-green-800">{data.monthlyStats.completedCertifications}</p>
-                </div>
-                <div className="text-center p-6 bg-purple-50 rounded-lg">
-                  <TrendingUp className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                  <h3 className="font-semibold text-purple-900">Progress Rate</h3>
-                  <p className="text-2xl font-bold text-purple-800">87%</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <TabsContent value="system" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* System Health */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-lg font-semibold">
+                    <Shield className="h-5 w-5 mr-2 text-green-600" />
+                    System Health
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-2">{data.overview.systemHealth}%</div>
+                    <p className="text-gray-600">System Uptime</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Active Sessions</span>
+                      <span className="text-sm text-gray-600">{data.monthlyStats.activeSessions}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Pending Reviews</span>
+                      <span className="text-sm text-gray-600">{data.monthlyStats.pendingReviews}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Network Traffic</span>
+                      <span className="text-sm text-gray-600">{data.systemMetrics.networkTraffic} GB</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        <TabsContent value="consultants" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Consultant Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-blue-50 rounded-lg">
-                  <UserCheck className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                  <h3 className="font-semibold text-blue-900">Active Consultants</h3>
-                  <p className="text-2xl font-bold text-blue-800">{data.overview.activeConsultants}</p>
-                </div>
-                <div className="text-center p-6 bg-green-50 rounded-lg">
-                  <BarChart3 className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                  <h3 className="font-semibold text-green-900">Utilization</h3>
-                  <p className="text-2xl font-bold text-green-800">{data.monthlyStats.consultantUtilization}%</p>
-                </div>
-                <div className="text-center p-6 bg-orange-50 rounded-lg">
-                  <CheckCircle className="h-8 w-8 mx-auto mb-2 text-orange-600" />
-                  <h3 className="font-semibold text-orange-900">Avg Rating</h3>
-                  <p className="text-2xl font-bold text-orange-800">{data.monthlyStats.averageSessionRating}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Analytics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="text-center p-4 border rounded-lg">
-                  <h4 className="font-medium text-gray-900">Session Completion Rate</h4>
-                  <p className="text-2xl font-bold text-green-600">94%</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <h4 className="font-medium text-gray-900">Average Session Duration</h4>
-                  <p className="text-2xl font-bold text-blue-600">58min</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <h4 className="font-medium text-gray-900">Student Satisfaction</h4>
-                  <p className="text-2xl font-bold text-purple-600">4.7/5</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <h4 className="font-medium text-gray-900">Platform Uptime</h4>
-                  <p className="text-2xl font-bold text-orange-600">99.9%</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              {/* Platform Overview */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-lg font-semibold">
+                    <Globe className="h-5 w-5 mr-2 text-blue-600" />
+                    Platform Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-lg font-bold text-blue-600">{data.overview.totalStudents}</div>
+                      <div className="text-xs text-gray-600">Students</div>
+                    </div>
+                    <div className="text-center p-3 bg-purple-50 rounded-lg">
+                      <div className="text-lg font-bold text-purple-600">{data.overview.totalConsultants}</div>
+                      <div className="text-xs text-gray-600">Consultants</div>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Active Students</span>
+                      <span className="text-sm text-gray-600">{data.overview.activeStudents}</span>
+                    </div>
+                    <Progress value={(data.overview.activeStudents / data.overview.totalStudents) * 100} className="h-2" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Active Consultants</span>
+                      <span className="text-sm text-gray-600">{data.overview.activeConsultants}</span>
+                    </div>
+                    <Progress value={(data.overview.activeConsultants / data.overview.totalConsultants) * 100} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
