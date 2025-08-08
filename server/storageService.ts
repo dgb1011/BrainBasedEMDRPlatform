@@ -250,4 +250,55 @@ export class StorageService {
       }
     }
   }
+
+  // Get all students (for admin dashboard)
+  static async getAllStudents() {
+    const { data, error } = await supabase
+      .from('students')
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  // Get all consultants (for admin dashboard)
+  static async getAllConsultants() {
+    const { data, error } = await supabase
+      .from('consultants')
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  // Get system statistics (for admin dashboard)
+  static async getSystemStats() {
+    const [
+      { count: studentsCount },
+      { count: consultantsCount },
+      { count: sessionsCount },
+      { count: completedSessionsCount }
+    ] = await Promise.all([
+      supabase.from('students').select('*', { count: 'exact', head: true }),
+      supabase.from('consultants').select('*', { count: 'exact', head: true }),
+      supabase.from('consultation_sessions').select('*', { count: 'exact', head: true }),
+      supabase.from('consultation_sessions').select('*', { count: 'exact', head: true }).eq('status', 'completed')
+    ]);
+
+    return {
+      totalStudents: studentsCount || 0,
+      totalConsultants: consultantsCount || 0,
+      totalSessions: sessionsCount || 0,
+      completedSessions: completedSessionsCount || 0,
+      completionRate: sessionsCount ? ((completedSessionsCount || 0) / sessionsCount * 100) : 0
+    };
+  }
 } 

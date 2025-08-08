@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Auth helper functions
+// Auth helper functions (BYPASSING SUPABASE AUTH)
 export const auth = {
   // Sign up
   async signUp(email: string, password: string, userData: {
@@ -13,54 +13,109 @@ export const auth = {
     lastName: string;
     role: 'student' | 'consultant' | 'admin';
   }) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          role: userData.role
-        }
-      }
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role
+      })
     });
 
-    return { data, error };
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data };
+    }
+
+    return { data, error: null };
   },
 
   // Sign in
   async signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password })
     });
 
-    return { data, error };
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { data: null, error: data };
+    }
+
+    return { data, error: null };
   },
 
   // Sign out
   async signOut() {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { error: data };
+    }
+
+    return { error: null };
   },
 
   // Reset password
   async resetPassword(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`
-    });
-    return { error };
+    // TODO: Implement password reset functionality
+    return { error: { message: 'Password reset not implemented yet' } };
   },
 
   // Get current user
   async getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    return { user, error };
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return { user: null, error: null };
+    }
+
+    const response = await fetch('/api/auth/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { user: null, error: data };
+    }
+
+    return { user: data.user, error: null };
   },
 
-  // Listen to auth changes
+  // Listen to auth changes (simplified for now)
   onAuthStateChange(callback: (event: string, session: any) => void) {
-    return supabase.auth.onAuthStateChange(callback);
+    // TODO: Implement proper auth state change listening
+    // For now, just call the callback with the current state
+    const token = localStorage.getItem('token');
+    if (token) {
+      callback('SIGNED_IN', { user: null });
+    } else {
+      callback('SIGNED_OUT', null);
+    }
+    
+    // Return a cleanup function
+    return () => {};
   }
 };
 

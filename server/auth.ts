@@ -1,18 +1,16 @@
-import jwt from 'jsonwebtoken';
 import { supabase } from './supabase';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { z } from 'zod';
 
-// JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key';
 
-// User roles
 export enum UserRole {
   STUDENT = 'student',
   CONSULTANT = 'consultant',
   ADMIN = 'admin'
 }
 
-// User types
 export interface User {
   id: string;
   email: string;
@@ -22,6 +20,7 @@ export interface User {
   profileImageUrl?: string;
   createdAt: Date;
   updatedAt: Date;
+  passwordHash?: string; // For internal use only
 }
 
 export interface Student extends User {
@@ -113,88 +112,104 @@ export class AuthService {
     }
   }
 
-  // Register new user
+  // Hash password
+  static async hashPassword(password: string): Promise<string> {
+    const saltRounds = 12;
+    return bcrypt.hash(password, saltRounds);
+  }
+
+  // Compare password
+  static async comparePassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
+  }
+
+  // Generate user ID
+  static generateUserId(): string {
+    return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // Register new user (BYPASSING SUPABASE AUTH)
   static async register(userData: z.infer<typeof registerSchema>): Promise<{ user: User; token: string }> {
-    // Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: {
-        data: {
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', userData.email)
+      .single();
+
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+
+    // Hash password
+    const passwordHash = await this.hashPassword(userData.password);
+
+    // Insert user and return generated UUID
+    const { data: insertedUser, error: insertError } = await supabase
+      .from('users')
+      .insert([
+        {
+          email: userData.email,
           first_name: userData.firstName,
           last_name: userData.lastName,
-          role: userData.role
+          role: userData.role,
+          password_hash: passwordHash,
+          email_verified: true,
+          source: 'platform',
+          created_at: new Date(),
+          updated_at: new Date()
         }
-      }
-    });
+      ])
+      .select('*')
+      .single();
 
-    if (authError) {
-      throw new Error(`Auth error: ${authError.message}`);
+    if (insertError || !insertedUser) {
+      throw new Error(`Profile creation error: ${insertError?.message || 'Unknown error'}`);
     }
 
-    if (!authData.user) {
-      throw new Error('Failed to create user');
-    }
-
-    // Create user profile in database
     const user: User = {
-      id: authData.user.id,
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      id: insertedUser.id,
+      email: insertedUser.email,
+      firstName: insertedUser.first_name,
+      lastName: insertedUser.last_name,
+      role: insertedUser.role as UserRole,
+      createdAt: new Date(insertedUser.created_at),
+      updatedAt: new Date(insertedUser.updated_at)
     };
 
-    // Insert user profile based on role (using correct column names)
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([{
-        id: user.id,
-        email: user.email,
-        first_name: user.firstName,
-        last_name: user.lastName,
-        role: user.role,
-        created_at: user.createdAt,
-        updated_at: user.updatedAt
-      }]);
-
-    if (profileError) {
-      // Clean up auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      throw new Error(`Profile creation error: ${profileError.message}`);
-    }
-
     // Create role-specific profile
-    if (userData.role === UserRole.STUDENT) {
+    if (user.role === UserRole.STUDENT) {
       const { error: studentError } = await supabase
         .from('students')
-        .insert([{
-          user_id: user.id,
-          course_completion_date: new Date(),
-          total_verified_hours: 0,
-          certification_status: 'in_progress',
-          preferred_session_length: 60,
-          consultation_preferences: {}
-        }]);
+        .insert([
+          {
+            user_id: user.id,
+            course_completion_date: new Date(),
+            total_verified_hours: 0,
+            certification_status: 'in_progress',
+            preferred_session_length: 60,
+            consultation_preferences: {}
+          }
+        ]);
 
       if (studentError) {
         throw new Error(`Student profile creation error: ${studentError.message}`);
       }
-    } else if (userData.role === UserRole.CONSULTANT) {
+    } else if (user.role === UserRole.CONSULTANT) {
       const { error: consultantError } = await supabase
         .from('consultants')
-        .insert([{
-          user_id: user.id,
-          license_number: 'TEMP-' + user.id.slice(0, 8),
-          specializations: ['General EMDR'],
-          hourly_rate: 150,
-          is_active: true,
-          years_experience: 5,
-          total_hours_completed: 0,
-          average_rating: 5.0
-        }]);
+        .insert([
+          {
+            user_id: user.id,
+            license_number: 'TEMP-' + String(user.id).slice(0, 8),
+            specializations: ['General EMDR'],
+            hourly_rate: 150,
+            is_active: true,
+            years_experience: 5,
+            total_hours_completed: 0,
+            average_rating: 5.0
+          }
+        ]);
 
       if (consultantError) {
         throw new Error(`Consultant profile creation error: ${consultantError.message}`);
@@ -205,41 +220,34 @@ export class AuthService {
     return { user, token };
   }
 
-  // Login user
+  // Login user (BYPASSING SUPABASE AUTH)
   static async login(email: string, password: string): Promise<{ user: User; token: string }> {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (authError) {
-      throw new Error(`Login error: ${authError.message}`);
-    }
-
-    if (!authData.user) {
-      throw new Error('User not found');
-    }
-
-    // Get user profile from database
-    const { data: userData, error: userError } = await supabase
+    // Get user from database
+    const { data: userData } = await supabase
       .from('users')
       .select('*')
-      .eq('id', authData.user.id)
+      .eq('email', email)
       .single();
 
-    if (userError || !userData) {
-      throw new Error('User profile not found');
+    if (!userData || !userData.password_hash) {
+      throw new Error('Invalid login credentials');
     }
 
+    // Verify password
+    const isValid = await this.comparePassword(password, userData.password_hash);
+    if (!isValid) {
+      throw new Error('Invalid login credentials');
+    }
+
+    // Create user object
     const user: User = {
       id: userData.id,
       email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role,
-      profileImageUrl: userData.profileImageUrl,
-      createdAt: new Date(userData.createdAt),
-      updatedAt: new Date(userData.updatedAt)
+      firstName: userData.first_name,
+      lastName: userData.last_name,
+      role: userData.role as UserRole,
+      createdAt: new Date(userData.created_at),
+      updatedAt: new Date(userData.updated_at)
     };
 
     const token = this.generateToken(user);
@@ -263,8 +271,7 @@ export class AuthService {
       email: userData.email,
       firstName: userData.first_name,
       lastName: userData.last_name,
-      role: userData.role,
-      profileImageUrl: userData.profile_image_url,
+      role: userData.role as UserRole,
       createdAt: new Date(userData.created_at),
       updatedAt: new Date(userData.updated_at)
     };
@@ -276,7 +283,6 @@ export class AuthService {
       .from('users')
       .select('*')
       .eq('id', userId)
-      .eq('role', UserRole.STUDENT)
       .single();
 
     if (userError || !userData) {
@@ -299,16 +305,15 @@ export class AuthService {
       firstName: userData.first_name,
       lastName: userData.last_name,
       role: UserRole.STUDENT,
-      profileImageUrl: userData.profile_image_url,
-      createdAt: new Date(userData.created_at),
-      updatedAt: new Date(userData.updated_at),
       phone: studentData.phone,
       timezone: studentData.timezone,
       courseCompletionDate: new Date(studentData.course_completion_date),
       totalVerifiedHours: studentData.total_verified_hours,
       certificationStatus: studentData.certification_status,
       preferredSessionLength: studentData.preferred_session_length,
-      consultationPreferences: studentData.consultation_preferences
+      consultationPreferences: studentData.consultation_preferences || {},
+      createdAt: new Date(userData.created_at),
+      updatedAt: new Date(userData.updated_at)
     };
   }
 
@@ -318,7 +323,6 @@ export class AuthService {
       .from('users')
       .select('*')
       .eq('id', userId)
-      .eq('role', UserRole.CONSULTANT)
       .single();
 
     if (userError || !userData) {
@@ -341,17 +345,16 @@ export class AuthService {
       firstName: userData.first_name,
       lastName: userData.last_name,
       role: UserRole.CONSULTANT,
-      profileImageUrl: userData.profile_image_url,
-      createdAt: new Date(userData.created_at),
-      updatedAt: new Date(userData.updated_at),
       licenseNumber: consultantData.license_number,
-      specializations: consultantData.specializations,
+      specializations: consultantData.specializations || [],
       hourlyRate: consultantData.hourly_rate,
       isActive: consultantData.is_active,
       bio: consultantData.bio,
       yearsExperience: consultantData.years_experience,
       totalHoursCompleted: consultantData.total_hours_completed,
-      averageRating: consultantData.average_rating
+      averageRating: consultantData.average_rating,
+      createdAt: new Date(userData.created_at),
+      updatedAt: new Date(userData.updated_at)
     };
   }
 
@@ -359,7 +362,14 @@ export class AuthService {
   static async updateStudentProfile(userId: string, profileData: z.infer<typeof studentProfileSchema>): Promise<Student> {
     const { error } = await supabase
       .from('students')
-      .update(profileData)
+      .update({
+        phone: profileData.phone,
+        timezone: profileData.timezone,
+        course_completion_date: profileData.courseCompletionDate,
+        preferred_session_length: profileData.preferredSessionLength,
+        consultation_preferences: profileData.consultationPreferences,
+        updated_at: new Date()
+      })
       .eq('user_id', userId);
 
     if (error) {
@@ -378,7 +388,14 @@ export class AuthService {
   static async updateConsultantProfile(userId: string, profileData: z.infer<typeof consultantProfileSchema>): Promise<Consultant> {
     const { error } = await supabase
       .from('consultants')
-      .update(profileData)
+      .update({
+        license_number: profileData.licenseNumber,
+        specializations: profileData.specializations,
+        hourly_rate: profileData.hourlyRate,
+        bio: profileData.bio,
+        years_experience: profileData.yearsExperience,
+        updated_at: new Date()
+      })
       .eq('user_id', userId);
 
     if (error) {
@@ -393,13 +410,15 @@ export class AuthService {
     return updatedProfile;
   }
 
-  // Logout user
+  // Logout (no server-side action needed for JWT)
   static async logout(userId: string): Promise<void> {
-    await supabase.auth.admin.signOut(userId);
+    // JWT tokens are stateless, so no server-side logout needed
+    // Client should remove the token from storage
+    console.log(`User ${userId} logged out`);
   }
 }
 
-// Middleware for authentication
+// Middleware for token authentication
 export const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -417,7 +436,7 @@ export const authenticateToken = (req: any, res: any, next: any) => {
   next();
 };
 
-// Middleware for role-based access control
+// Middleware for role-based access
 export const requireRole = (roles: UserRole[]) => {
   return (req: any, res: any, next: any) => {
     if (!req.user) {
