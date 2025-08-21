@@ -62,14 +62,15 @@ export function SchedulingDashboard({ userRole }: SchedulingDashboardProps) {
   const { data: availableSlots, isLoading: slotsLoading } = useQuery({
     queryKey: ['available-slots', selectedDate, bookingPreferences],
     queryFn: async () => {
-      const response = await apiRequest('/api/scheduling/available-slots', 'POST', {
+      const res = await apiRequest('/api/scheduling/available-slots', 'POST', {
         dateRange: {
           start: selectedDate,
           end: addDays(selectedDate || new Date(), 7)
         },
         preferences: bookingPreferences
       });
-      return response.slots || [];
+      const json = await res.json();
+      return json.slots || [];
     },
     enabled: !!selectedDate
   });
@@ -78,8 +79,9 @@ export function SchedulingDashboard({ userRole }: SchedulingDashboardProps) {
   const { data: upcomingSessions, isLoading: sessionsLoading } = useQuery({
     queryKey: ['upcoming-sessions'],
     queryFn: async () => {
-      const response = await apiRequest('/api/sessions/upcoming');
-      return response.sessions || [];
+      const res = await apiRequest('/api/sessions/upcoming', 'GET');
+      const json = await res.json();
+      return json.sessions || [];
     }
   });
 
@@ -87,21 +89,23 @@ export function SchedulingDashboard({ userRole }: SchedulingDashboardProps) {
   const { data: consultants } = useQuery({
     queryKey: ['consultants'],
     queryFn: async () => {
-      const response = await apiRequest('/api/consultants');
-      return response.consultants || [];
+      const res = await apiRequest('/api/consultants', 'GET');
+      const json = await res.json();
+      return json.consultants || [];
     }
   });
 
   // Book session mutation
   const bookSessionMutation = useMutation({
     mutationFn: async (slot: AvailableSlot) => {
-      return await apiRequest('/api/scheduling/book-session', 'POST', {
+      const res = await apiRequest('/api/scheduling/book-session', 'POST', {
         consultantId: slot.consultantId,
         startTime: slot.startTime,
         endTime: slot.endTime,
         sessionType: 'consultation',
         timezone: bookingPreferences.timezone
       });
+      return await res.json();
     },
     onSuccess: () => {
       toast({

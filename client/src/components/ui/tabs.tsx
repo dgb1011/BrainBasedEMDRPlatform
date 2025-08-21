@@ -3,7 +3,13 @@ import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "@/lib/utils"
 
-const Tabs = TabsPrimitive.Root
+type TabsProps = React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
+
+// Wrapper to ensure Radix Tabs always receives a value or defaultValue
+const Tabs = ({ value, defaultValue, ...props }: TabsProps) => {
+  const safeDefault = defaultValue ?? (typeof value === 'string' ? value : undefined)
+  return <TabsPrimitive.Root value={value} defaultValue={safeDefault} {...props} />
+}
 
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,

@@ -196,23 +196,53 @@ export class AuthService {
         throw new Error(`Student profile creation error: ${studentError.message}`);
       }
     } else if (user.role === UserRole.CONSULTANT) {
-      const { error: consultantError } = await supabase
+      const { data: consultant, error: consultantError } = await supabase
         .from('consultants')
         .insert([
           {
             user_id: user.id,
             license_number: 'TEMP-' + String(user.id).slice(0, 8),
-            specializations: ['General EMDR'],
+            specializations: ['EMDR'],
             hourly_rate: 150,
             is_active: true,
             years_experience: 5,
             total_hours_completed: 0,
             average_rating: 5.0
           }
-        ]);
+        ])
+        .select()
+        .single();
 
       if (consultantError) {
         throw new Error(`Consultant profile creation error: ${consultantError.message}`);
+      }
+
+      // Set up default availability for new consultant
+      if (consultant) {
+        try {
+          // Import the service here to avoid circular dependency
+          const { schedulingService } = await import('./services/schedulingService');
+          
+          // Default schedule: Monday-Friday 9 AM to 5 PM (standard business hours)
+          const defaultSchedule = {
+            1: [{ startTime: '09:00', endTime: '17:00', isAvailable: true }], // Monday
+            2: [{ startTime: '09:00', endTime: '17:00', isAvailable: true }], // Tuesday
+            3: [{ startTime: '09:00', endTime: '17:00', isAvailable: true }], // Wednesday
+            4: [{ startTime: '09:00', endTime: '17:00', isAvailable: true }], // Thursday
+            5: [{ startTime: '09:00', endTime: '17:00', isAvailable: true }], // Friday
+            0: [], // Sunday - no availability
+            6: []  // Saturday - no availability
+          };
+
+          await schedulingService.setWeeklyAvailability(
+            consultant.id,
+            defaultSchedule,
+            'America/New_York' // Default timezone - can be updated by consultant
+          );
+        } catch (availabilityError) {
+          console.warn('Failed to set default availability for new consultant:', availabilityError);
+          // Don't fail the registration if availability setup fails
+        }
       }
     }
 
@@ -222,6 +252,8 @@ export class AuthService {
 
   // Login user (BYPASSING SUPABASE AUTH)
   static async login(email: string, password: string): Promise<{ user: User; token: string }> {
+    // Account lockout simple guard
+    // Note: For production, persist attempts in DB or cache. Here, rely on DB fields if present.
     // Get user from database
     const { data: userData } = await supabase
       .from('users')
@@ -236,8 +268,23 @@ export class AuthService {
     // Verify password
     const isValid = await this.comparePassword(password, userData.password_hash);
     if (!isValid) {
+      // Optional: increment failed_login_attempts
+      try {
+        await supabase
+          .from('users')
+          .update({ failed_login_attempts: (userData.failed_login_attempts || 0) + 1, last_failed_login_at: new Date() })
+          .eq('id', userData.id);
+      } catch {}
       throw new Error('Invalid login credentials');
     }
+
+    // Reset failed attempts on success
+    try {
+      await supabase
+        .from('users')
+        .update({ failed_login_attempts: 0, last_login_at: new Date() })
+        .eq('id', userData.id);
+    } catch {}
 
     // Create user object
     const user: User = {
@@ -420,8 +467,11 @@ export class AuthService {
 
 // Middleware for token authentication
 export const authenticateToken = (req: any, res: any, next: any) => {
+  // Prefer HttpOnly cookie; fall back to Authorization header for backward compatibility
+  const cookieToken = req.cookies?.bb_jwt as string | undefined;
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const headerToken = authHeader && authHeader.split(' ')[1];
+  const token = cookieToken || headerToken;
 
   if (!token) {
     return res.status(401).json({ message: 'Access token required' });

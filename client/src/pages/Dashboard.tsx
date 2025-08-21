@@ -1,4 +1,45 @@
 import { useEffect, useState } from 'react';
+import { apiRequest } from '@/lib/queryClient';
+function VerifyCertificateWidget() {
+  return null;
+}
+
+function MyCertificateWidget() {
+  const [status, setStatus] = useState<any>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiRequest('/api/me/certificate', 'GET');
+        const json = await res.json();
+        setStatus(json);
+      } catch {}
+    })();
+  }, []);
+  const download = async () => {
+    if (!status?.verificationCode) return;
+    const res = await fetch(`/api/certificates/${status.verificationCode}/download`);
+    const json = await res.json();
+    if (json?.url) setDownloadUrl(json.url), (window.location.href = json.url);
+  };
+  return (
+    <div className="p-4 border rounded-lg">
+      <div className="font-semibold mb-2">My Certificate</div>
+      {status?.status === 'completed' ? (
+        <div className="space-y-2 text-sm">
+          <div>Certificate Number: {status.certificateNumber}</div>
+          <div>Issued: {new Date(status.issuedDate).toLocaleDateString?.() || String(status.issuedDate)}</div>
+          <div>
+            Verify: <a className="text-blue-600 underline" href={`/verify/${status.verificationCode}`}>/verify/{status.verificationCode}</a>
+          </div>
+          <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={download}>Download</button>
+        </div>
+      ) : (
+        <div className="text-sm text-gray-600">Not issued yet. Keep completing hours.</div>
+      )}
+    </div>
+  );
+}
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -47,6 +88,16 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading, error } = useQuery({
     queryKey: ['/api/students/dashboard'],
     retry: false,
+  });
+
+  const { data: upcomingData } = useQuery({
+    queryKey: ['/api/sessions/upcoming'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/sessions/upcoming', 'GET');
+      const json = await res.json();
+      return json?.sessions || [];
+    },
+    staleTime: 60_000,
   });
 
   const { data: adminData } = useQuery({
@@ -141,12 +192,33 @@ export default function Dashboard() {
     quickActions: [
       { id: 1, title: "Book Session", icon: Calendar, color: "bg-blue-500", href: "/schedule" },
       { id: 2, title: "View Progress", icon: BarChart3, color: "bg-green-500", href: "/progress" },
-      { id: 3, title: "Upload Documents", icon: FileText, color: "bg-purple-500", href: "/documents" },
-      { id: 4, title: "Contact Support", icon: MessageSquare, color: "bg-orange-500", href: "/support" }
+      { id: 3, title: "My Sessions", icon: FileText, color: "bg-purple-500", href: "/sessions" },
+      { id: 4, title: "Verify Certificate", icon: Award, color: "bg-orange-500", href: "/verify" }
     ]
   };
 
-  const data = dashboardData || mockDashboardData;
+  const normalizeUpcoming = (sessions: any[]) => {
+    return (sessions || []).map((s: any) => ({
+      id: s.id,
+      consultantName: s.consultant ? `${s.consultant.user.first_name} ${s.consultant.user.last_name}` : (s.consultantName || 'Consultant'),
+      consultantImage: s.consultantImage || undefined,
+      scheduledStart: s.scheduled_start ? new Date(s.scheduled_start) : (s.scheduledStart ? new Date(s.scheduledStart) : new Date()),
+      scheduledEnd: s.scheduled_end ? new Date(s.scheduled_end) : (s.scheduledEnd ? new Date(s.scheduledEnd) : new Date()),
+      sessionType: s.session_type || s.sessionType || 'consultation',
+      status: s.status || 'pending',
+      notes: s.notes || '',
+    }));
+  };
+
+  const data = (() => {
+    if (!dashboardData) return mockDashboardData;
+    const upcoming = normalizeUpcoming(upcomingData || []);
+    return {
+      ...mockDashboardData,
+      ...dashboardData,
+      upcomingSessions: upcoming.length ? upcoming : mockDashboardData.upcomingSessions,
+    };
+  })();
 
   if (isLoading) {
     return (
@@ -203,17 +275,21 @@ export default function Dashboard() {
               Welcome back, {data.student.name}! 👋
             </h1>
             <p className="text-gray-600">
-              You're making great progress on your EMDR certification journey
+              Track your progress toward your BrainBased EMDR certification
             </p>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/progress">
+                <Target className="h-4 w-4 mr-2" />
+                View Progress
+              </Link>
             </Button>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/sessions">
+                <Calendar className="h-4 w-4 mr-2" />
+                My Sessions
+              </Link>
             </Button>
           </div>
         </div>
@@ -232,9 +308,9 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold">Certification Progress</h2>
+                  <h2 className="text-xl font-semibold">EMDR Certification Progress</h2>
                   <p className="text-blue-100">
-                    {data.student.hoursCompleted} of {data.student.totalHours} hours completed
+                    {data.student.hoursCompleted} of 40 consultation hours completed
                   </p>
                 </div>
               </div>
@@ -256,8 +332,11 @@ export default function Dashboard() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Quick Actions & Milestones */}
+          {/* Left Column - Certificate, Quick Actions & Milestones */}
           <div className="space-y-6">
+            {/* My Certificate */}
+            <MyCertificateWidget />
+
             {/* Quick Actions */}
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-4">
@@ -346,7 +425,7 @@ export default function Dashboard() {
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={session.consultantImage} />
                         <AvatarFallback>
-                          {session.consultantName.split(' ').map(n => n[0]).join('')}
+                          {session.consultantName.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">

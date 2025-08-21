@@ -35,6 +35,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function Progress() {
   const { toast } = useToast();
@@ -42,6 +43,30 @@ export default function Progress() {
 
   const { data: progressData, isLoading } = useQuery({
     queryKey: ['/api/students/progress'],
+  });
+
+  const { data: eligibility } = useQuery({
+    queryKey: ['/api/students/certificates/eligibility'],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest('/api/students/certificates/eligibility', 'GET');
+        return await res.json();
+      } catch {
+        return undefined as any;
+      }
+    }
+  });
+
+  const { data: latestCert } = useQuery({
+    queryKey: ['/api/students/certificates/latest'],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest('/api/students/certificates/latest', 'GET');
+        return await res.json();
+      } catch {
+        return undefined as any;
+      }
+    }
   });
 
   // Mock data for demonstration
@@ -227,13 +252,20 @@ export default function Progress() {
             </p>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm">
+            {latestCert?.success && latestCert.certificate?.certificate_url ? (
+              <Button variant="outline" size="sm" onClick={() => window.open(latestCert.certificate.certificate_url, '_blank')}>
+                <Download className="h-4 w-4 mr-2" />
+                Download Certificate
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" disabled>
+                <Award className="h-4 w-4 mr-2" />
+                {eligibility?.eligible ? 'Eligible — issuing soon' : 'Certificate Pending'}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => window.open('/api/students/progress.pdf', '_blank')}>
               <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
-            <Button variant="outline" size="sm">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share Progress
+              Export PDF
             </Button>
           </div>
         </div>

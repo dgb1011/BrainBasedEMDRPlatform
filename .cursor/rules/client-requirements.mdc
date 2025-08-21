@@ -1,0 +1,116 @@
+---
+alwaysApply: true
+---
+
+This project rule is for you to keep a clear focus on the goal, the client's requirements.
+This are the solid requirements from the BrainBased client:
+
+Summary
+Overview:
+We’re BrainBased EMDR, a growing training provider for EMDR certification. We currently manage our consultation hour tracking and certification process through multiple manual systems (Kajabi, SignUpGenius, spreadsheets, etc.). We're looking to streamline this process through a custom app or platform.
+
+Quick Walkthrough: https://www.loom.com/share/318000e6e29d40b29a6895fd9224fb0a?sid=ddfdb960-8f67-4a26-b187-501cebf4c0f4
+
+We don’t have a set solution in mind and are open to pitches, including:
+
+- Proposed platform/tools
+- Timeline
+- Budget estimates
+
+Our Goals: Build an app that:
+
+- Allows students to track their EMDR consultation hours
+- Allows consultants to verify sessions
+- Automates certification once all requirements are met
+- Minimizes manual admin involvement
+- Seamlessly integrates with Kajabi (our CRM)
+
+What the System Needs to Do:
+👩‍🎓 For Students:
+- Sign up for consultations (we currently use SignUpGenius but open to better tools)
+- Track sessions completed across multiple consultants
+- Submit consultation logs and evaluations
+- View real-time progress toward their 40-hour requirement
+
+Automatically receive their certification once hours and evaluations are complete
+
+👨‍🏫 For Consultants:
+- Verify sessions attended
+- Log hours and receive monthly payment summaries
+- Easily update availability (consultant list must stay dynamic as we grow)
+
+📬 For Admin:
+Get notified when:
+- Consultations are completed
+- Logs and evaluations are uploaded
+- View total hours per student and consultant
+- Override or manually approve steps if needed (only when necessary)
+- Minimal oversight — ideally a self-sustaining system
+
+🎓 Certification:
+- Triggered once all hours and evaluations are confirmed
+- Auto-generate certification (we’re open to using Canva or a similar tool)
+- Send PDF certificate to the student automatically
+
+Phase 2: Directory Automation
+- After certification, send student an email form to submit details (name, bio, license info)
+- Auto-populate certified students into our website directory
+
+Must be scalable, secure, and easy to update as we grow. 
+
+Technical Notes:
+- Our CRM is Kajabi (required for integration/tagging if possible)
+- Open to solutions using:
+- No-code tools (Glide, Softr, Airtable, etc.)
+- Custom development (React, Firebase, etc.)
+- External schedulers and video platforms (Zoom, Google Meet, etc.)
+- Must be scalable, secure, and easy to update as we grow
+
+To Apply:
+Please include the following in your proposal:
+
+1. Your proposed solution (no-code, custom build, etc.)
+2. Estimated timeline
+3. Estimated cost
+4.Relevant experience or portfolio links
+
+Client transcript: 
+
+0:00 Hi there! So, I am just creating a quick video to kind of explain our needs, uh, we are not exactly sure what this is going to look like at the end, and we're looking for proposal and pitches, um, with timelines and price points, uh, it's not necessarily a unique ask, but it is one, uhm, that, I don't
+0:23 , we, we don't currently have a one-stop-shop solution for, and so we have realized and recognized the need and necessity for, uhm, outside sources, to create this unique, uhm, you know, application for us.
+0:36 So I'm going to walk through kind of what we currently go, go through, uhm, for our students. We are, uhm, a training, uh, we offer a training for, uh, students who are seeking EMD training.
+0:48 DR certifications, uhm, and what this entails is a course that they go through for about a week. And once they've completed that, to finalize this certification, they need 40 consultation hours.
+1:01 Now, how we go about this currently is a per- students go and they complete the hours, they submit the sheet, and they can go through any of our consultants, and they have their own separate sheet that will basically kind of notify us on how to pay them.
+1:17 Uhm, and from there, we'll go and, uhm, they'll submit their paper to the online portal, which is Kajabi, that's what we use for the course, and then they'll, uhm, we'll go and we'll verify manually, uhm, and then we'll, uh, go ahead and, uhm, and, uh, send them the certification, essentially, once it's
+1:41 complete. It's not a perfect system, and it's definitely not sustainable for growth. What we are actually hoping for, uhm, is something, maybe, uh, that allows them to, we were considering using SignUp Genius for this, uhm, to sign up for a consultation, and it tracks, on both ends, from both the student
+2:02 and the consultant, that it was indeed attended, you know, because students can always attend or sign up for a session.
+2:08 and it is very prudent that they do so, uhm, for our tracking purposes. Uh, and, of course, obviously, we, we want to also be able to keep track of it for payment purposes of the consultant.
+2:21 So, it, it, what we want, what we want to do is we want to make sure that we are providing it to you in times of difficulty.
+2:40 also simultaneously signs them up for this application, uhm, for the consultation hours. So that as soon as they're done with the course, they can begin tracking them with an online portal that they'll go in, be able to schedule a test.
+2:56 and, you know, whether maybe I'm even envisioning possibly whatever platform we can, whether it's Zoom, you know, Google, any, any video streaming or meeting streaming application online, whether it's through third party tools or webhooks.
+3:12 Connect to that as well, uhm, just so that we can track it in the system and the system does verify that both people did jump on.
+3:19 Uhm, they do the meeting, the student can verify that they attended, the consultant can verify that they attended, because whether, you this is that is little bit tricky about this.
+3:30 Is that it doesn't have to be with the same consultant. We have a, you know, a few consultants and this will continue to grow as we as we scale the business.
+3:39 I think we're at about five or seven consultants currently, but, you know, we're adding more all the time. And so it's so important that when they select this consultant from the drop down, it is constantly updated.
+3:50 You know, if I added a new consultant in tomorrow, I want this application to be updated so that they know that they can utilize this new consultant.
+3:57 Um, so we want something that's con, you know, that obviously can keep track of all this, keep it up to date, verify the 40 hours.
+4:05 So automatically, when the student reaches the 40 hours, they'll still be required to submit their, their paper. Um, and I would actually love it if they could do it, maybe through even this application.
+4:16 Um, but we will also get a notification, a verification, that this was done. And then from there, we don't even want to be doing the certification for them, or like manually doing it for them.
+4:27 We were hoping to either through a third party, uhm, A.I. use, Canva to push through the, the, create, auto-generate the certificate for them, and even send it to them.
+4:40 So that it's completely automated, and it's verified online, uhm, without the need for somebody manually going in. And to, to check anything throughout the way, because at the way that we're scaling with the amount of students that we'll be having, we don't necessarily want something that needs to be
+4:58 overseen. Obviously, we want access to it should something happen. But ideally, this would be an almost foolproof system that doesn't require any oversight.
+5:08 Um, that being said, once they've gotten the certificate, another thing that we'll be adding to our website is a directory.
+5:17 And so, what we're offering our students is once they become EMDR certified, they will also be added into our directory.
+5:25 So, we are hoping, I think this is the first part, and we'll probably get into the second part. But, um, I'm definitely going to kind of plant the seed now.
+5:33 So, that once we do finalize the first portion of this. The second portion would be being able to create and submit, um, like, send them over an email, basically requesting their name, um, any, a few other details about them, and a short, you know, word caps.
+5:52 Bio that they can provide us with, um, that will allow us to auto-populate them into our directory, again, with minimal to no oversight on our end.
+6:02 We want the system to run, um, on its own, with our ability to go in there, should we need to need to, but otherwise self, uh, self-sufficient.
+6:13 So, um, we rely primarily on Kajabi for our CRM system, uh, all our students who register for the course are in there.
+6:23 I'm what happens here. So, whatever application we create would probably need to integrate well with Kajabi. Um, and, you know, uh, Kajabi is a pretty large platform.
+6:33 There are plenty of tools out there that would allow us to create webhooks or, um, any necessary connections to it.
+6:40 But, uh, that is our primary CRM as well. Uh, we are, of course, going to take into consideration if we wanted to use, um, any external platforms.
+6:52 They're, we're welcome. We're welcoming approaches. So, minute. So, basically, in so many words, we're hoping that our applicant, applicants can provide us with a timeline, uh, price point, as well as their proposed solution to this unique situation that we have.
+7:10 Um, it is a unique challenge. Uh, we recognize that. And, um, obviously, you know, we just kind of want to review possible, uh, possible routes we can take that would work best for us as we continue to grow.
+7:24 If this needs to be a sustainable solution, you know, we obviously can take, uh, a simple. A whole band-aid approach, but it's not going to be sustainable long-term.
+7:32 So that's why we're looking into investing on time and energy and resources into, um, this long-term solution for our growing business.
+7:41 So let me know if anything is unclear. Um. We'd be happy to go over it. Um, but yeah.

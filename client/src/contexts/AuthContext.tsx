@@ -25,40 +25,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data: userData, error } = await db.getUserProfile(userId);
-      
-      if (error || !userData) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-
-      return {
-        id: userData.id,
-        email: userData.email,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        role: userData.role,
-        profileImageUrl: userData.profile_image_url
-      };
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-  };
+  // Deprecated: fetching profile from client-side Supabase requires anon envs.
+  // We derive user directly from our server's /api/auth/me response.
 
   const refreshUser = async () => {
     try {
       const { user: authUser, error } = await auth.getCurrentUser();
-      
       if (error || !authUser) {
         setUser(null);
         return;
       }
-
-      const userProfile = await fetchUserProfile(authUser.id);
-      setUser(userProfile);
+      // authUser already contains firstName/lastName/role from server
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        firstName: authUser.firstName,
+        lastName: authUser.lastName,
+        role: authUser.role,
+        profileImageUrl: authUser.profileImageUrl,
+      });
     } catch (error) {
       console.error('Error refreshing user:', error);
       setUser(null);
@@ -73,9 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: error.message };
       }
 
-      if (data.user) {
-        await refreshUser();
-      }
+      await refreshUser();
 
       return {};
     } catch (error) {
@@ -92,7 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.user) {
-        await refreshUser();
+        // Set user immediately from registration response
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          role: data.user.role,
+        });
+        
+        // Navigate to appropriate dashboard based on role  
+        const path = data.user.role === 'admin' ? '/admin' : '/';
+        window.location.href = path;
       }
 
       return {};
@@ -105,8 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await auth.signOut();
       setUser(null);
+      // Force reload to clear any cached state
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
+      // Even if logout fails on server, clear local state
+      setUser(null);
+      window.location.href = '/';
     }
   };
 
@@ -116,32 +115,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initializeAuth = async () => {
       try {
         // Listen for auth state changes
-        const { data: { subscription } } = auth.onAuthStateChange(async (event, session) => {
+        const unsubscribe = auth.onAuthStateChange(async () => {
           if (!mounted) return;
-          
-          if (event === 'SIGNED_IN' && session?.user) {
+          try {
             await refreshUser();
-          } else if (event === 'SIGNED_OUT') {
+          } catch (error) {
+            console.error('Auth state change error:', error);
             setUser(null);
+          } finally {
+            setLoading(false);
           }
-          setLoading(false);
         });
 
-        // Initial load with timeout protection
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth initialization timeout')), 5000)
-        );
-
-        await Promise.race([
-          refreshUser(),
-          timeoutPromise
-        ]);
-
-        if (mounted) {
-          setLoading(false);
+        // Initial load - only if we have a valid session
+        try {
+          await refreshUser();
+        } catch (error) {
+          // If refreshUser fails, clear any stale state
+          console.log('Initial auth check failed, clearing state');
+          setUser(null);
         }
+        if (mounted) setLoading(false);
 
-        return () => subscription.unsubscribe();
+        return () => unsubscribe();
       } catch (error) {
         console.error('Error initializing auth:', error);
         if (mounted) {

@@ -6,6 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   Video, 
   Calendar, 
@@ -15,7 +19,8 @@ import {
   Download,
   Edit,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Star
 } from 'lucide-react';
 import SessionCard from '@/components/SessionCard';
 import { apiRequest } from '@/lib/queryClient';
@@ -26,21 +31,29 @@ export default function Sessions() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [logDialogOpen, setLogDialogOpen] = useState<string | null>(null);
+  const [evalDialogOpen, setEvalDialogOpen] = useState<string | null>(null);
+  const [reflectionText, setReflectionText] = useState('');
+  const [evaluationScore, setEvaluationScore] = useState<string>('5');
 
   const { data: sessionsData, isLoading } = useQuery({
-    queryKey: ['/api/students/sessions'],
+    queryKey: ['/api/sessions'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/sessions', 'GET');
+      return await res.json();
+    }
   });
 
   const rescheduleSessionMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      return await apiRequest(`/api/sessions/${sessionId}/reschedule`, 'POST');
+      return await apiRequest(`/api/sessions/${sessionId}/reschedule`, 'PUT');
     },
     onSuccess: () => {
       toast({
         title: "Reschedule Request Sent",
         description: "Your reschedule request has been sent to the consultant.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/students/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
     },
     onError: (error: Error) => {
       toast({
@@ -57,6 +70,42 @@ export default function Sessions() {
 
   const handleRescheduleSession = (sessionId: string) => {
     rescheduleSessionMutation.mutate(sessionId);
+  };
+
+  const submitLogMutation = useMutation({
+    mutationFn: async ({ sessionId, notes, rating }: { sessionId: string; notes: string; rating?: number }) => {
+      return await apiRequest(`/api/sessions/${sessionId}/log`, 'POST', {
+        notes,
+        rating,
+        duration: 1 // Default 1 hour
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Log Submitted",
+        description: "Your consultation log has been submitted successfully.",
+      });
+      setLogDialogOpen(null);
+      setReflectionText('');
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to submit log",
+        description: error.message || "Failed to submit consultation log.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmitLog = () => {
+    if (logDialogOpen && reflectionText.trim()) {
+      submitLogMutation.mutate({
+        sessionId: logDialogOpen,
+        notes: reflectionText,
+        rating: parseInt(evaluationScore)
+      });
+    }
   };
 
   // Mock data for demonstration
@@ -159,7 +208,7 @@ export default function Sessions() {
             </TabsList>
             
             <TabsContent value="upcoming" className="mt-6">
-              <SessionsList sessions={(sessions as any).upcoming || []} showActions={true} />
+               <SessionsList sessions={(sessions as any).upcoming || []} showActions={true} />
             </TabsContent>
             
             <TabsContent value="completed" className="mt-6">
@@ -179,7 +228,7 @@ export default function Sessions() {
                           <div className="space-y-2">
                             <div className="flex items-center text-sm text-gray-600">
                               <User className="h-4 w-4 mr-2" />
-                              <span className="font-medium">{session.consultantName}</span>
+                               <span className="font-medium">{session.consultantName}</span>
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <Calendar className="h-4 w-4 mr-2" />
@@ -191,7 +240,7 @@ export default function Sessions() {
                                 {format(new Date(session.scheduledStart), 'h:mm a')} - {format(new Date(session.scheduledEnd), 'h:mm a')}
                               </span>
                             </div>
-                            {session.feedback && (
+                             {session.feedback && (
                               <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                                 <div className="flex items-center mb-1">
                                   <FileText className="h-4 w-4 mr-2 text-gray-500" />
@@ -214,14 +263,90 @@ export default function Sessions() {
                               Recording
                             </Button>
                           )}
-                          <Button 
+                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => toast({ title: "Certificate", description: "Certificate download coming soon!" })}
-                          >
+                           >
                             <Download className="h-4 w-4 mr-2" />
                             Certificate
                           </Button>
+                           {typeof session.studentEvaluationScore === 'number' && (
+                             <div className="text-xs text-gray-600 flex items-center justify-end">
+                               <Star className="h-3 w-3 mr-1 text-yellow-500" /> {session.studentEvaluationScore}/5
+                             </div>
+                           )}
+                           <Dialog open={logDialogOpen === session.id} onOpenChange={(open)=>{ setLogDialogOpen(open ? session.id : null); if(!open) setReflectionText(''); }}>
+                             <DialogTrigger asChild>
+                               <Button variant="outline" size="sm">
+                                 <FileText className="h-4 w-4 mr-2" />
+                                 Submit Log
+                               </Button>
+                             </DialogTrigger>
+                             <DialogContent>
+                               <DialogHeader>
+                                 <DialogTitle>Submit Consultation Log</DialogTitle>
+                               </DialogHeader>
+                               <div className="space-y-3">
+                                 <Textarea value={reflectionText} onChange={(e)=>setReflectionText(e.target.value)} placeholder="Write your reflection..." rows={6} />
+                               </div>
+                               <DialogFooter>
+                                 <Button variant="outline" onClick={()=>{ setLogDialogOpen(null); setReflectionText(''); }}>Cancel</Button>
+                                 <Button onClick={async ()=>{
+                                   if(!reflectionText.trim()) { toast({ title:'Please enter a reflection', variant:'destructive' }); return; }
+                                   try {
+                                     await apiRequest(`/api/sessions/${session.id}/log`, 'POST', { 
+                                       notes: reflectionText.trim(),
+                                       rating: parseInt(evaluationScore),
+                                       duration: 1 
+                                     });
+                                     toast({ title:'Log submitted' });
+                                     setLogDialogOpen(null);
+                                     setReflectionText('');
+                                     queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+                                   } catch(e:any){
+                                     toast({ title:'Failed to submit log', description:e.message, variant:'destructive' });
+                                   }
+                                 }}>Submit</Button>
+                               </DialogFooter>
+                             </DialogContent>
+                           </Dialog>
+                           <Dialog open={evalDialogOpen === session.id} onOpenChange={(open)=>{ setEvalDialogOpen(open ? session.id : null); if(!open) setEvaluationScore('5'); }}>
+                             <DialogTrigger asChild>
+                               <Button variant="outline" size="sm">
+                                 <Edit className="h-4 w-4 mr-2" />
+                                 Evaluate
+                               </Button>
+                             </DialogTrigger>
+                             <DialogContent>
+                               <DialogHeader>
+                                 <DialogTitle>Rate This Session</DialogTitle>
+                               </DialogHeader>
+                               <RadioGroup value={evaluationScore} onValueChange={setEvaluationScore} className="grid grid-cols-5 gap-3">
+                                 {["1","2","3","4","5"].map(val => (
+                                   <div key={val} className="flex items-center space-x-2">
+                                     <RadioGroupItem value={val} id={`score-${val}`} />
+                                     <Label htmlFor={`score-${val}`}>{val}</Label>
+                                   </div>
+                                 ))}
+                               </RadioGroup>
+                               <DialogFooter>
+                                 <Button variant="outline" onClick={()=>{ setEvalDialogOpen(null); setEvaluationScore('5'); }}>Cancel</Button>
+                                 <Button onClick={async ()=>{
+                                   const score = Number(evaluationScore);
+                                   try {
+                                     await apiRequest(`/api/sessions/${session.id}/evaluation`, 'POST', { score });
+                                     toast({ title:'Evaluation submitted' });
+                                     setEvalDialogOpen(null);
+                                     setEvaluationScore('5');
+                                     queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+                                   } catch(e:any){
+                                     toast({ title:'Failed to submit evaluation', description:e.message, variant:'destructive' });
+                                   }
+                                 }}>Submit</Button>
+                               </DialogFooter>
+                             </DialogContent>
+                           </Dialog>
                         </div>
                       </div>
                     </CardContent>
@@ -312,6 +437,8 @@ export default function Sessions() {
           </Card>
         </div>
       </div>
+
+
     </div>
   );
 }

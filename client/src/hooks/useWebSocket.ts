@@ -11,13 +11,25 @@ export function useWebSocket(url?: string) {
   const ws = useRef<WebSocket | null>(null);
 
   const connect = () => {
-    if (!url) {
+    let wsUrl = url;
+    
+    if (!wsUrl || wsUrl.startsWith('/')) {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      url = `${protocol}//${window.location.host}/ws`;
+      let host = window.location.host;
+      
+      // Fallback for development
+      if (!host || host === 'localhost') {
+        host = 'localhost:5000';
+      }
+      
+      // If url starts with '/', append it to the base URL
+      const path = wsUrl || '/ws';
+      wsUrl = `${protocol}//${host}${path}`;
+      console.log('WebSocket connecting to:', wsUrl);
     }
 
     try {
-      ws.current = new WebSocket(url);
+      ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
         console.log('WebSocket connected');
@@ -69,6 +81,7 @@ export function useWebSocket(url?: string) {
     return () => {
       disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
   return {

@@ -1,0 +1,15 @@
+{
+  "id": "default",
+  "name": "VAMOS",
+  "primaryColor": "#707f9e",
+  "accentColor": "#9769bf",
+  "textColor": "#1e293b",
+  "backgroundGradientStart": "#ad1f1f",
+  "backgroundGradientEnd": "#764ba2",
+  "logoUrl": "",
+  "signatureUrl": "",
+  "fontUrl": "",
+  "title": "Certificate of Completion",
+  "subtitle": "EMDR Basic Training Certification",
+  "body": "has successfully completed [TOTAL_HOURS] hours of EMDR Consultation and met all requirements of the BrainBased EMDR Training Institute."
+}

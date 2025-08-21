@@ -9,8 +9,8 @@ export default function Auth() {
   const { signIn, signUp } = useAuth();
 
   const handleLoginSuccess = () => {
-    // Redirect will be handled by the router
-    console.log('Login successful');
+    // Router will automatically redirect based on user role
+    console.log('Login successful - redirecting to appropriate dashboard');
   };
 
   const handleRegisterSuccess = () => {

@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import NotificationCenter from '@/components/NotificationCenter';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -67,19 +68,18 @@ export default function Navigation() {
     if (!user) return [];
 
     switch (user.role) {
-      case 'admin':
-        return [
-          { href: '/', label: 'Dashboard', icon: BarChart3, badge: null },
-          { href: '/admin', label: 'Admin Panel', icon: Settings, badge: null },
-          { href: '/users', label: 'Users', icon: User, badge: '12' },
-          { href: '/reports', label: 'Reports', icon: FileText, badge: null },
-        ];
+                  case 'admin':
+              return [
+                { href: '/', label: 'Dashboard', icon: BarChart3, badge: null },
+                { href: '/admin/kajabi', label: 'Kajabi Integration', icon: Settings, badge: null },
+                { href: '/admin/certificates/designer', label: 'Certificate Designer', icon: FileText, badge: null },
+                { href: '/admin/reports', label: 'Reports', icon: BookOpen, badge: null },
+              ];
       case 'consultant':
         return [
           { href: '/', label: 'Dashboard', icon: BarChart3, badge: null },
-          { href: '/schedule', label: 'Schedule', icon: Calendar, badge: '3' },
-          { href: '/sessions', label: 'Sessions', icon: BookOpen, badge: '2' },
-          { href: '/students', label: 'Students', icon: User, badge: null },
+          { href: '/availability', label: 'Availability', icon: Calendar, badge: null },
+          { href: '/sessions', label: 'Sessions', icon: BookOpen, badge: null },
         ];
       case 'student':
         return [
@@ -171,10 +171,7 @@ export default function Navigation() {
             </Button>
 
             {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-4 w-4" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-            </Button>
+            <NotificationCenter />
 
             {/* Messages */}
             <Button variant="ghost" size="sm" className="relative">
@@ -214,22 +211,18 @@ export default function Navigation() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  <span>Billing</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">
-                  <Shield className="mr-2 h-4 w-4" />
-                  <span>Privacy</span>
-                </DropdownMenuItem>
+                <Link href="/profile">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/settings">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer">
                   <HelpCircle className="mr-2 h-4 w-4" />

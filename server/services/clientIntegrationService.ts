@@ -293,7 +293,7 @@ export class ClientIntegrationService {
     // Update webhook status
     const { error: webhookError } = await supabase
       .from('client_webhooks')
-      .update({ status: 'inactive' })
+      .update({ status: 'not_connected' })
       .eq('client_id', clientId);
 
     if (webhookError) {
@@ -302,7 +302,7 @@ export class ClientIntegrationService {
 
     // Update client config
     await this.updateClientConfig(clientId, {
-      integration_status: 'inactive'
+      integration_status: 'not_connected'
     });
   }
 

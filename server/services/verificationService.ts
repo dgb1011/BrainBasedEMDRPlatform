@@ -236,11 +236,13 @@ export class VerificationService {
       throw new Error(`Update certification status error: ${updateError.message}`);
     }
 
-    // TODO: Trigger certificate generation
-    console.log(`Student ${studentId} has reached 40 hours. Triggering certification process.`);
-    
-    // This will be implemented when we add certificate generation
-    // await CertificateService.generateCertificate(studentId);
+    // Trigger certificate generation
+    try {
+      const { certificateService } = await import('./certificateService');
+      await certificateService.generateCertificate(studentId);
+    } catch (err) {
+      console.error('Failed to generate certificate automatically:', err);
+    }
   }
 
   /**

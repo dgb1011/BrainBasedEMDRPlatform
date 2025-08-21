@@ -1,11 +1,32 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { CertificateTemplateService } from './services/certificateTemplateService';
 import { setupVite, serveStatic, log } from "./vite";
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import * as Sentry from '@sentry/node';
 
 const app = express();
+app.set('etag', false);
+
+// Sentry
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+  app.use(Sentry.Handlers.requestHandler());
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+
+// Basic rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -38,9 +59,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await CertificateTemplateService.ensureFile();
   const server = await registerRoutes(app);
 
   // Error handling middleware
+  if (process.env.SENTRY_DSN) {
+    app.use(Sentry.Handlers.errorHandler());
+  }
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

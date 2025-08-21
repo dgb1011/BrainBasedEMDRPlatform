@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { auth } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -13,6 +13,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,16 +26,12 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
     setError('');
 
     try {
-      const { data, error } = await auth.signIn(email, password);
-      
-      if (error) {
-        setError(error.message);
+      const result = await signIn(email, password);
+      if (result?.error) {
+        setError(result.error);
         return;
       }
-
-      if (data.user) {
-        onSuccess();
-      }
+      onSuccess();
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
     } finally {

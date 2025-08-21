@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
-import VideoConference from '@/components/VideoConference';
+import TwilioVideoConference from '@/components/TwilioVideoConference';
 
 export default function VideoSession() {
   const { sessionId } = useParams();
@@ -22,7 +22,7 @@ export default function VideoSession() {
   }
 
   return (
-    <VideoConference 
+    <TwilioVideoConference 
       roomId={`session-${sessionId}`}
       onLeave={handleLeaveSession}
     />

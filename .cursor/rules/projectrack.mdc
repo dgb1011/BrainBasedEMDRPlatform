@@ -1,0 +1,102 @@
+---
+description: Clean project track
+globs:
+alwaysApply: True
+---
+# BrainBased EMDR Platform - Development Rules
+
+## PROJECT CONTEXT
+This is the BrainBased EMDR certification management platform. We are integrating Twilio for video, email, and communication services to replace custom infrastructure.
+
+## DEVELOPMENT PHASE: TWILIO INTEGRATION
+Current Status: Fixing critical blockers completed, now implementing Twilio integration
+
+## CRITICAL DEVELOPMENT RULES
+
+### 1. TWILIO INTEGRATION PRIORITY
+- Replace custom WebRTC with Twilio Video
+- Replace custom email with Twilio SendGrid
+- Add Twilio SMS for notifications
+- Maintain existing UI/UX while upgrading backend services
+
+### 2. CORE BUSINESS REQUIREMENTS
+- 40-hour EMDR consultation tracking (automatic)
+- Student-consultant video sessions (Twilio Video)
+- Automated certificate generation upon completion
+- Consultant availability management
+- Admin oversight with minimal intervention
+- Kajabi integration for student onboarding
+
+### 3. ARCHITECTURE DECISIONS
+- Frontend: React/TypeScript (existing)
+- Backend: Express/TypeScript (existing) 
+- Database: Supabase (existing)
+- Video: Twilio Video (NEW)
+- Email: Twilio SendGrid (NEW)
+- SMS: Twilio SMS (NEW)
+- Auth: Custom JWT + Twilio Verify (ENHANCED)
+
+### 4. DEVELOPMENT ORDER
+1. ✅ Fixed WebSocket errors
+2. ✅ Fixed consultant availability API
+3. ✅ Fixed notification system errors
+4. 🔄 CURRENT: Twilio Video integration
+5. 📋 NEXT: Twilio SendGrid email integration
+6. 📋 NEXT: Twilio SMS notifications
+7. 📋 NEXT: Enhanced authentication with Twilio Verify
+8. 📋 NEXT: End-to-end testing
+9. 📋 NEXT: Production deployment
+
+### 5. CODE QUALITY STANDARDS
+- TypeScript strict mode (no any types unless absolutely necessary)
+- Proper error handling for all Twilio API calls
+- Environment variables for all Twilio credentials
+- Clean separation between Twilio services and business logic
+- Comprehensive logging for debugging
+- Professional code comments and documentation
+
+### 6. TESTING REQUIREMENTS
+- Test video sessions between student and consultant roles
+- Test email delivery for all notification types
+- Test SMS delivery for reminders and alerts
+- Test session recording and playback
+- Test automatic hour tracking and certificate generation
+
+### 7. ENVIRONMENT VARIABLES REQUIRED
+```
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_API_KEY=
+TWILIO_API_SECRET=
+TWILIO_PHONE_NUMBER=
+
+# SendGrid Configuration  
+SENDGRID_API_KEY=
+SENDGRID_FROM_EMAIL=
+
+# Existing Configuration
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+JWT_SECRET=
+```
+
+### 8. NEVER LOSE TRACK CHECKLIST
+Always update TODO list after completing tasks
+Always test functionality before moving to next step
+Always commit working code before major changes
+Always document new Twilio integrations
+Always verify environment variables are set
+Always test with all three user roles (student, consultant, admin)
+
+### 9. INTEGRATION SUCCESS CRITERIA
+- Video sessions work between student and consultant
+- Emails send automatically for all events
+- SMS notifications work for reminders
+- Session hours are tracked automatically
+- Certificates generate upon 40-hour completion
+- No console errors or broken functionality
+- Professional user experience maintained
+
+### 10. CURRENT FOCUS
+Implementing Twilio Video to replace the existing WebRTC system while maintaining the current UI components and user experience.

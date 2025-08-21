@@ -7,11 +7,30 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Flexible API request helper that supports both call styles:
+// 1) apiRequest('/api/path', 'POST', body)
+// 2) apiRequest('POST', '/api/path', body)
 export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
+  a: string,
+  b?: string | unknown,
+  c?: unknown,
 ): Promise<Response> {
+  let method: string;
+  let url: string;
+  let data: unknown | undefined;
+
+  if (a.startsWith('/')) {
+    // Style 1: (url, method?, data?)
+    url = a;
+    method = (typeof b === 'string' ? b : 'GET') as string;
+    data = typeof b === 'string' ? c : b;
+  } else {
+    // Style 2: (method, url, data?)
+    method = a;
+    url = String(b || '/');
+    data = c;
+  }
+
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -29,7 +48,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = (queryKey[0] as string) || '/';
+    const res = await fetch(url, {
       credentials: "include",
     });
 

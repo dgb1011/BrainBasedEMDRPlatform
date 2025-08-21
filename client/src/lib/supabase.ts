@@ -24,13 +24,19 @@ export const auth = {
         firstName: userData.firstName,
         lastName: userData.lastName,
         role: userData.role
-      })
+      }),
+      credentials: 'include'
     });
 
     const data = await response.json();
     
     if (!response.ok) {
       return { data: null, error: data };
+    }
+
+    // Store token after successful registration
+    if (data.token) {
+      localStorage.setItem('token', data.token);
     }
 
     return { data, error: null };
@@ -43,13 +49,19 @@ export const auth = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
+      credentials: 'include'
     });
 
     const data = await response.json();
     
     if (!response.ok) {
       return { data: null, error: data };
+    }
+
+    // Store token after successful login
+    if (data.token) {
+      localStorage.setItem('token', data.token);
     }
 
     return { data, error: null };
@@ -60,12 +72,15 @@ export const auth = {
     const response = await fetch('/api/auth/logout', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
     });
 
     const data = await response.json();
+    
+    // Always clear the token regardless of server response
+    localStorage.removeItem('token');
     
     if (!response.ok) {
       return { error: data };
@@ -83,20 +98,27 @@ export const auth = {
   // Get current user
   async getCurrentUser() {
     const token = localStorage.getItem('token');
-    if (!token) {
-      return { user: null, error: null };
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const response = await fetch('/api/auth/me', {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers,
+      credentials: 'include'
     });
 
     const data = await response.json();
     
     if (!response.ok) {
+      // If token is invalid, remove it
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+      }
       return { user: null, error: data };
     }
 

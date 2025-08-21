@@ -35,7 +35,11 @@ export default function Schedule() {
   };
 
   const { data: upcomingSessions, isLoading } = useQuery({
-    queryKey: ['/api/students/sessions'],
+    queryKey: ['/api/sessions'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/sessions', 'GET');
+      return await res.json();
+    }
   });
 
   const bookSessionMutation = useMutation({
@@ -54,7 +58,7 @@ export default function Schedule() {
         title: "Session Booked",
         description: "Your consultation session has been successfully scheduled.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/students/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
     },
     onError: (error: Error) => {
       toast({
@@ -109,9 +113,9 @@ export default function Schedule() {
                     </div>
                   ))}
                 </div>
-              ) : (upcomingSessions as any[])?.length > 0 ? (
+              ) : (upcomingSessions?.sessions || [])?.length > 0 ? (
                 <div className="space-y-4">
-                  {(upcomingSessions as any[]).slice(0, 3).map((session: any) => (
+                  {(upcomingSessions?.sessions || []).slice(0, 3).map((session: any) => (
                     <div key={session.id} className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <Badge className="bg-blue-100 text-blue-800">

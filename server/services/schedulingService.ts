@@ -1,7 +1,8 @@
 import { supabase } from '../supabase';
-import { addDays, addHours, format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
-import { utcToZonedTime } from 'date-fns-tz';
-import { emailService } from './emailService';
+import { addDays, format, isBefore } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { twilioEmailService } from './twilioEmailService';
+import { twilioSmsService } from './twilioSmsService';
 
 export interface WeeklySchedule {
   [dayOfWeek: number]: TimeSlot[]; // 0-6 (Sunday-Saturday)
@@ -312,27 +313,87 @@ export class SchedulingService {
     const sessionDate = new Date(session.scheduled_start).toLocaleDateString();
     const sessionTime = new Date(session.scheduled_start).toLocaleTimeString();
 
-    // Send to student
-    await emailService.sendSessionConfirmation({
-      to: session.student.user.email,
+    // Send confirmation to student
+    await twilioEmailService.sendSessionConfirmation(
+      session.student.user.email,
       studentName,
-      consultantName,
-      consultantEmail: session.consultant.user.email,
       sessionDate,
       sessionTime,
-      duration: 60,
-      sessionId: session.id,
-      calendarLink: this.generateCalendarLink(session)
-    });
+      consultantName,
+      session.id
+    );
+
+    // Send SMS confirmation to student (if phone number available)
+    if (session.student.phone) {
+      await twilioSmsService.sendSessionConfirmation(
+        session.student.phone,
+        studentName,
+        sessionDate,
+        sessionTime,
+        consultantName
+      );
+    }
   }
 
   /**
    * Schedule reminder emails for a session
    */
   async scheduleSessionReminders(sessionId: string): Promise<void> {
-    await emailService.scheduleReminder(sessionId, '24_hours');
-    await emailService.scheduleReminder(sessionId, '2_hours');
-    await emailService.scheduleReminder(sessionId, '15_minutes');
+    // Get session details
+    const { data: session } = await supabase
+      .from('consultation_sessions')
+      .select(`
+        *,
+        student:students(user:users(first_name, email, phone)),
+        consultant:consultants(user:users(first_name, last_name))
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (!session) return;
+
+    const studentName = session.student.user.first_name;
+    const sessionDate = new Date(session.scheduled_start).toLocaleDateString();
+    const sessionTime = new Date(session.scheduled_start).toLocaleTimeString();
+
+    // Send 24-hour reminder
+    await twilioEmailService.sendSessionReminder(
+      session.student.user.email,
+      studentName,
+      sessionDate,
+      sessionTime,
+      sessionId,
+      '24h'
+    );
+
+    // Send 30-minute reminder
+    await twilioEmailService.sendSessionReminder(
+      session.student.user.email,
+      studentName,
+      sessionDate,
+      sessionTime,
+      sessionId,
+      '30min'
+    );
+
+    // Send SMS reminders if phone available
+    if (session.student.user.phone) {
+      await twilioSmsService.sendSessionReminder(
+        session.student.user.phone,
+        studentName,
+        sessionDate,
+        sessionTime,
+        '24h'
+      );
+      
+      await twilioSmsService.sendSessionReminder(
+        session.student.user.phone,
+        studentName,
+        sessionDate,
+        sessionTime,
+        '30min'
+      );
+    }
   }
 
   /**
@@ -507,11 +568,9 @@ export class SchedulingService {
         .gte('scheduled_start', startDate.toISOString())
         .lte('scheduled_start', endDate.toISOString());
 
-      return {
-        availability: availability || [],
-        blockedDates: blockedDates || [],
-        bookings: bookings || []
-      };
+      return [
+        ...(availability || []),
+      ];
 
     } catch (error) {
       console.error('Error getting consultant availability:', error);
@@ -582,12 +641,14 @@ export class SchedulingService {
    */
   private combineDateAndTime(date: Date, timeStr: string, timezone: string): Date {
     const [hours, minutes] = timeStr.split(':').map(Number);
-    const combined = new Date(date);
-    combined.setHours(hours, minutes, 0, 0);
-    
-    // Convert from consultant timezone to UTC
-    // For now, just return the combined date (timezone conversion to be implemented)
-    return combined;
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+
+    // Construct a date at the consultant's local time, then convert to UTC
+    const localDate = new Date(year, month, day, hours, minutes, 0, 0);
+    // Interpret this local wall time in the given IANA timezone and convert to UTC Date
+    return fromZonedTime(localDate, timezone);
   }
 
   /**

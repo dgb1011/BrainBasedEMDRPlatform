@@ -1,6 +1,10 @@
 import { supabase } from '../supabase';
-import { emailService } from './emailService';
+import { twilioEmailService } from './twilioEmailService';
 import crypto from 'crypto';
+import PDFDocument from 'pdfkit';
+import { Readable } from 'stream';
+import QRCode from 'qrcode';
+import { CertificateTemplateService } from './certificateTemplateService';
 import fetch from 'node-fetch';
 
 export interface CertificateData {
@@ -26,13 +30,7 @@ export interface Certificate {
 }
 
 export class CertificateService {
-  private canvaApiKey: string;
-  private templateId: string;
-
-  constructor() {
-    this.canvaApiKey = process.env.CANVA_API_KEY || '';
-    this.templateId = process.env.CANVA_TEMPLATE_ID || '';
-  }
+  constructor() {}
 
   /**
    * Generate certificate for student who completed 40 hours
@@ -54,8 +52,12 @@ export class CertificateService {
         throw new Error('Student not found');
       }
 
-      // Verify student has 40+ hours
-      if ((student.total_consultation_hours || 0) < 40) {
+      // Verify student has 40+ hours (either total_consultation_hours or total_verified_hours)
+      const completedHours = Math.max(
+        Number(student.total_consultation_hours || 0),
+        Number(student.total_verified_hours || 0)
+      );
+      if (completedHours < 40) {
         throw new Error('Student has not completed required 40 hours');
       }
 
@@ -68,7 +70,7 @@ export class CertificateService {
         studentId,
         studentName: `${student.user.first_name} ${student.user.last_name}`,
         email: student.user.email,
-        totalHours: student.total_consultation_hours,
+        totalHours: completedHours,
         completionDate: new Date(),
         courseName: 'EMDR Basic Training'
       };
@@ -92,8 +94,8 @@ export class CertificateService {
         throw new Error('Failed to create certificate record');
       }
 
-      // Generate PDF using Canva API
-      const pdfUrl = await this.generatePDFWithCanva(certificateData, certificateNumber);
+      // Generate PDF using in-house renderer
+      const pdfUrl = await this.generatePdf(certificateData, certificateNumber, verificationCode);
 
       // Update certificate with PDF URL
       await supabase
@@ -111,6 +113,18 @@ export class CertificateService {
         pdfUrl,
         issueDate: new Date().toLocaleDateString()
       });
+
+      // Record notification for the student
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: student.user.id,
+          title: 'Your EMDR Certificate is Ready',
+          message: `Congratulations! Your certificate (${certificateNumber}) has been issued.`,
+          type: 'success',
+          related_entity_type: 'certificate',
+          related_entity_id: certificate.id
+        });
 
       // Update student status
       await supabase
@@ -151,147 +165,147 @@ export class CertificateService {
   }
 
   /**
-   * Generate PDF certificate using Canva API
+   * Render preview PDF without mutating DB records
    */
-  private async generatePDFWithCanva(
-    data: CertificateData, 
-    certificateNumber: string
-  ): Promise<string> {
-    try {
-      if (!this.canvaApiKey || !this.templateId) {
-        // Fallback: Generate simple PDF without Canva
-        return await this.generateSimplePDF(data, certificateNumber);
-      }
+  async renderPreview(studentId: string): Promise<{ url: string }> {
+    // Fetch minimal student info
+    const { data: student } = await supabase
+      .from('students')
+      .select(`*, user:users(*)`)
+      .eq('id', studentId)
+      .single();
+    if (!student) throw new Error('Student not found');
 
-      // Create design from template
-      const createResponse = await fetch('https://api.canva.com/rest/v1/designs', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.canvaApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          design_type: 'Certificate',
-          template_id: this.templateId,
-          title: `EMDR Certificate - ${data.studentName}`
-        })
-      });
-
-      if (!createResponse.ok) {
-        throw new Error('Failed to create design from template');
-      }
-
-      const { design } = await createResponse.json() as any;
-
-      // Update text elements with certificate data
-      await this.updateCanvaText(design.id, {
-        '[STUDENT_NAME]': data.studentName,
-        '[COMPLETION_DATE]': data.completionDate.toLocaleDateString(),
-        '[TOTAL_HOURS]': data.totalHours.toString(),
-        '[CERTIFICATE_NUMBER]': certificateNumber,
-        '[ISSUE_DATE]': new Date().toLocaleDateString()
-      });
-
-      // Export as PDF
-      const exportResponse = await fetch(`https://api.canva.com/rest/v1/designs/${design.id}/exports`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.canvaApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          format: 'PDF',
-          quality: 'high'
-        })
-      });
-
-      if (!exportResponse.ok) {
-        throw new Error('Failed to export PDF');
-      }
-
-      const { export: exportData } = await exportResponse.json() as any;
-
-      // Wait for export to complete
-      let pdfUrl = '';
-      let attempts = 0;
-      const maxAttempts = 30;
-
-      while (attempts < maxAttempts) {
-        const statusResponse = await fetch(`https://api.canva.com/rest/v1/exports/${exportData.id}`, {
-          headers: {
-            'Authorization': `Bearer ${this.canvaApiKey}`
-          }
-        });
-
-        const status = await statusResponse.json() as any;
-
-        if (status.status === 'success') {
-          pdfUrl = status.url;
-          break;
-        } else if (status.status === 'failed') {
-          throw new Error('PDF export failed');
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        attempts++;
-      }
-
-      if (!pdfUrl) {
-        throw new Error('PDF export timeout');
-      }
-
-      // Upload to Supabase Storage
-      const uploadedUrl = await this.uploadPDFToStorage(pdfUrl, certificateNumber);
-      
-      return uploadedUrl;
-
-    } catch (error) {
-      console.error('Canva PDF generation error:', error);
-      // Fallback to simple PDF
-      return await this.generateSimplePDF(data, certificateNumber);
-    }
+    const certificateNumber = `PREVIEW-${Date.now()}`;
+    const certificateData: CertificateData = {
+      studentId,
+      studentName: `${student.user.first_name} ${student.user.last_name}`,
+      email: student.user.email,
+      totalHours: student.total_consultation_hours || 40,
+      completionDate: new Date(),
+      courseName: 'EMDR Basic Training'
+    };
+    const bufferUrl = await this.generatePdf(certificateData, certificateNumber, 'PREVIEW');
+    return { url: bufferUrl };
   }
 
   /**
-   * Update text elements in Canva design
+   * Generate PDF certificate using in-house renderer (PDFKit)
    */
-  private async updateCanvaText(designId: string, replacements: Record<string, string>): Promise<void> {
-    try {
-      // Get design elements
-      const elementsResponse = await fetch(`https://api.canva.com/rest/v1/designs/${designId}/elements`, {
-        headers: {
-          'Authorization': `Bearer ${this.canvaApiKey}`
-        }
-      });
+  private async generatePdf(
+    data: CertificateData,
+    certificateNumber: string,
+    verificationCode: string
+  ): Promise<string> {
+    const template = await CertificateTemplateService.getTemplate();
+    const doc = new PDFDocument({ size: 'LETTER', layout: 'landscape', margin: 48 });
+    const chunks: Buffer[] = [];
+    const stream = doc as unknown as Readable;
+    doc.on('data', (chunk) => chunks.push(chunk as Buffer));
 
-      const { elements } = await elementsResponse.json() as any;
+    const primary = template.primaryColor || '#2563eb';
+    const accent = template.accentColor || '#7e22ce';
+    const textColor = template.textColor || '#1e293b';
 
-      // Update text elements
-      for (const element of elements) {
-        if (element.type === 'text' && element.text) {
-          let updatedText = element.text;
-          
-          for (const [placeholder, value] of Object.entries(replacements)) {
-            updatedText = updatedText.replace(new RegExp(placeholder, 'g'), value);
-          }
-
-          if (updatedText !== element.text) {
-            await fetch(`https://api.canva.com/rest/v1/designs/${designId}/elements/${element.id}`, {
-              method: 'PATCH',
-              headers: {
-                'Authorization': `Bearer ${this.canvaApiKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                text: updatedText
-              })
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error updating Canva text:', error);
+    // Optional font
+    if (template.fontUrl) {
+      try {
+        const resp = await fetch(template.fontUrl);
+        const buf = Buffer.from(await resp.arrayBuffer());
+        doc.registerFont('BrandFont', buf);
+        doc.font('BrandFont');
+      } catch {}
     }
+
+    // Background
+    doc.rect(0, 0, doc.page.width, doc.page.height)
+       .fill('#ffffff');
+    doc.save();
+    doc.rect(0, 0, 20, doc.page.height).fill(primary);
+    doc.rect(doc.page.width - 20, 0, 20, doc.page.height).fill(accent);
+    doc.restore();
+
+    // Header
+    doc.fill(primary).fontSize(36).text(template.title || 'Certificate of Completion', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fill(textColor).fontSize(16).text(template.subtitle || 'EMDR Basic Training Certification', { align: 'center' });
+
+    // Optional logo
+    if (template.logoUrl) {
+      try {
+        const resp = await fetch(template.logoUrl);
+        const buf = Buffer.from(await resp.arrayBuffer());
+        doc.image(buf, 48, 40, { height: 48 });
+      } catch {}
+    }
+
+    // Student name
+    doc.moveDown(1.2);
+    doc.fill(textColor).fontSize(22).text('This is to certify that', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fill(textColor).fontSize(48).text(data.studentName, { align: 'center' });
+
+    // Body
+    doc.moveDown(0.6);
+    const bodyText = (template.body || 'has successfully completed [TOTAL_HOURS] hours of EMDR Consultation.').replace('[TOTAL_HOURS]', String(data.totalHours));
+    doc.fontSize(16)
+       .fill(textColor)
+       .text(bodyText, { align: 'center', width: doc.page.width - 160 });
+
+    // Details
+    doc.moveDown(1);
+    doc.fontSize(14).fill(textColor);
+    const left = 160; const mid = doc.page.width / 2; const right = doc.page.width - 320;
+    doc.text(`Certificate Number: ${certificateNumber}`, left, doc.y);
+    doc.text(`Completion Date: ${data.completionDate.toLocaleDateString()}`, right, doc.y, { align: 'right' });
+
+    // QR code
+    const verifyUrl = `${process.env.APP_URL || ''}/verify/${verificationCode}`;
+    const qrPng = await QRCode.toDataURL(verifyUrl, { margin: 0, scale: 3 });
+    const qrBase64 = qrPng.replace(/^data:image\/(png|gif|jpeg);base64,/, '');
+    const qrBuffer = Buffer.from(qrBase64, 'base64');
+    const qrSize = 96;
+    doc.image(qrBuffer, doc.page.width - qrSize - 64, doc.page.height - qrSize - 64, { width: qrSize, height: qrSize });
+
+    // Footer bar
+    doc.moveTo(64, doc.page.height - 96).lineTo(doc.page.width - 64, doc.page.height - 96).strokeColor('#e5e7eb').stroke();
+    doc.fill(textColor).fontSize(12).text('BrainBased EMDR Training Institute', 64, doc.page.height - 84, { align: 'left' });
+    doc.fill(textColor).fontSize(12).text(`Issued on ${new Date().toLocaleDateString()}`, 64, doc.page.height - 64, { align: 'left' });
+    doc.fillColor('#64748b').fontSize(10).text('Scan to verify', doc.page.width - qrSize - 64, doc.page.height - 64, { width: qrSize, align: 'center' });
+
+    // Optional signature
+    if (template.signatureUrl) {
+      try {
+        const resp = await fetch(template.signatureUrl);
+        const buf = Buffer.from(await resp.arrayBuffer());
+        const sigWidth = 160;
+        const sigY = doc.page.height - 120;
+        doc.image(buf, doc.page.width/2 - sigWidth/2, sigY, { width: sigWidth });
+        doc.fillColor(textColor).fontSize(10).text('Authorized Signature', doc.page.width/2 - sigWidth/2, sigY + 50, { width: sigWidth, align: 'center' });
+      } catch {}
+    }
+
+    doc.end();
+    await new Promise<void>((resolve) => stream.on('end', () => resolve()));
+    const pdfBuffer = Buffer.concat(chunks);
+
+    // Upload to Supabase Storage
+    const fileName = `users/${data.studentId}/certificates/certificate-${certificateNumber}.pdf`;
+    const { error } = await supabase.storage
+      .from('certificates')
+      .upload(fileName, pdfBuffer, { contentType: 'application/pdf' });
+    if (error) throw error;
+    const { data: publicData } = supabase.storage.from('certificates').getPublicUrl(fileName);
+    return publicData.publicUrl;
+  }
+
+  /**
+   * Update text elements in Canva design (deprecated - using in-house PDF renderer)
+   */
+  private async updateCanvaText(_designId: string, _replacements: Record<string, string>): Promise<void> {
+    // This method is deprecated since we moved to in-house PDF rendering
+    // Kept for compatibility but not used
+    console.warn('updateCanvaText is deprecated - using in-house PDF renderer');
   }
 
   /**
@@ -490,34 +504,9 @@ export class CertificateService {
   /**
    * Upload PDF to Supabase Storage
    */
-  private async uploadPDFToStorage(pdfUrl: string, certificateNumber: string): Promise<string> {
-    try {
-      // Download PDF from Canva
-      const response = await fetch(pdfUrl);
-      const pdfBuffer = await response.buffer();
-
-      // Upload to Supabase Storage
-      const fileName = `certificate-${certificateNumber}.pdf`;
-      const { data, error } = await supabase.storage
-        .from('certificates')
-        .upload(fileName, pdfBuffer, {
-          contentType: 'application/pdf'
-        });
-
-      if (error) {
-        throw error;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('certificates')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading PDF to storage:', error);
-      return pdfUrl; // Return original URL as fallback
-    }
+  private async uploadPDFToStorage(_pdfUrl: string, _certificateNumber: string): Promise<string> {
+    // Deprecated with the in-house renderer; retained for compatibility
+    throw new Error('uploadPDFToStorage is not used in the in-house renderer path');
   }
 
   /**
@@ -532,21 +521,11 @@ export class CertificateService {
       issueDate: string;
     }
   ): Promise<void> {
-    await emailService.sendCertificateEmail({
-      to: data.email,
-      firstName: data.studentName.split(' ')[0],
-      lastName: data.studentName.split(' ').slice(1).join(' '),
-      certificateNumber: certificate.certificateNumber,
-      verificationCode: certificate.verificationCode,
-      issueDate: certificate.issueDate,
-      totalHours: data.totalHours,
-      attachments: [
-        {
-          filename: `EMDR-Certificate-${certificate.certificateNumber}.pdf`,
-          path: certificate.pdfUrl
-        }
-      ]
-    });
+    await twilioEmailService.sendCertificateAvailable(
+      data.email,
+      data.studentName,
+      certificate.pdfUrl
+    );
   }
 
   /**

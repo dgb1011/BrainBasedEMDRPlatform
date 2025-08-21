@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
+import Navigation from '@/components/layout/Navigation';
 import { 
   Calendar, 
   Clock, 
@@ -48,6 +49,19 @@ export default function ConsultantDashboard() {
 
   const { data: consultantData, isLoading } = useQuery({
     queryKey: ['/api/consultants/dashboard'],
+    queryFn: async () => {
+      try {
+        const [summaryRes, monthlyRes] = await Promise.all([
+          apiRequest('/api/earnings/consultant/summary', 'GET'),
+          apiRequest('/api/earnings/consultant/monthly', 'GET')
+        ]);
+        const summary = await summaryRes.json();
+        const monthly = await monthlyRes.json();
+        return { summary, monthly } as any;
+      } catch {
+        return undefined;
+      }
+    }
   });
 
   // Mock data for demonstration
@@ -131,7 +145,7 @@ export default function ConsultantDashboard() {
     ]
   };
 
-  const data = consultantData || mockConsultantData;
+  const data = (consultantData as any) || mockConsultantData;
 
   const handleJoinSession = (sessionId: string) => {
     setLocation(`/video/${sessionId}`);
@@ -181,6 +195,7 @@ export default function ConsultantDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50">
+      <Navigation />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
@@ -188,7 +203,7 @@ export default function ConsultantDashboard() {
             <Avatar className="h-16 w-16">
               <AvatarImage src={data.consultant.profileImage} />
               <AvatarFallback className="text-lg font-semibold">
-                {data.consultant.name.split(' ').map(n => n[0]).join('')}
+                {data.consultant.name.split(' ').map((n: string) => n[0]).join('')}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
@@ -196,7 +211,7 @@ export default function ConsultantDashboard() {
                 {data.consultant.name}
               </h1>
               <p className="text-gray-600">
-                EMDR Consultant • {data.consultant.specializations.join(', ')}
+                EMDR Consultant • BrainBased EMDR Platform
               </p>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center">
@@ -215,13 +230,17 @@ export default function ConsultantDashboard() {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/availability">
+                <Calendar className="h-4 w-4 mr-2" />
+                Availability
+              </Link>
             </Button>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/sessions">
+                <Users className="h-4 w-4 mr-2" />
+                Sessions
+              </Link>
             </Button>
           </div>
         </div>
@@ -232,9 +251,9 @@ export default function ConsultantDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">This Month</p>
+                  <p className="text-blue-100 text-sm font-medium">EMDR Sessions</p>
                   <p className="text-2xl font-bold">{data.monthlyStats.sessionsThisMonth}</p>
-                  <p className="text-blue-100 text-sm">Sessions</p>
+                  <p className="text-blue-100 text-sm">This Month</p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-200" />
               </div>
@@ -245,7 +264,7 @@ export default function ConsultantDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">Hours</p>
+                  <p className="text-green-100 text-sm font-medium">Consultation Hours</p>
                   <p className="text-2xl font-bold">{data.monthlyStats.hoursThisMonth}</p>
                   <p className="text-green-100 text-sm">This Month</p>
                 </div>
@@ -258,9 +277,9 @@ export default function ConsultantDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Earnings</p>
+                  <p className="text-purple-100 text-sm font-medium">Monthly Earnings</p>
                   <p className="text-2xl font-bold">${data.monthlyStats.earningsThisMonth}</p>
-                  <p className="text-purple-100 text-sm">This Month</p>
+                  <p className="text-purple-100 text-sm">From EMDR Sessions</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-purple-200" />
               </div>
@@ -294,7 +313,7 @@ export default function ConsultantDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {data.quickActions.map((action) => (
+                {data.quickActions.map((action: any) => (
                   <Button 
                     key={action.id} 
                     variant="ghost" 
@@ -398,12 +417,12 @@ export default function ConsultantDashboard() {
             <CardContent>
               <ScrollArea className="h-96">
                 <div className="space-y-4">
-                  {data.upcomingSessions.map((session) => (
+                  {data.upcomingSessions.map((session: any) => (
                     <div key={session.id} className="flex items-start space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={session.studentImage} />
                         <AvatarFallback>
-                          {session.studentName.split(' ').map(n => n[0]).join('')}
+                          {session.studentName.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -461,12 +480,12 @@ export default function ConsultantDashboard() {
               <CardContent>
                 <ScrollArea className="h-64">
                   <div className="space-y-3">
-                    {data.recentCompletedSessions.map((session) => (
+                    {data.recentCompletedSessions.map((session: any) => (
                       <div key={session.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={session.studentImage} />
                           <AvatarFallback className="text-xs">
-                            {session.studentName.split(' ').map(n => n[0]).join('')}
+                            {session.studentName.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
@@ -529,8 +548,8 @@ export default function ConsultantDashboard() {
               <CardContent>
                 <div className="space-y-3">
                   {data.upcomingSessions
-                    .filter(session => session.scheduledStart.toDateString() === new Date().toDateString())
-                    .map((session) => (
+                    .filter((session: any) => session.scheduledStart.toDateString() === new Date().toDateString())
+                    .map((session: any) => (
                       <div key={session.id} className="flex items-center space-x-3 p-2 rounded-lg bg-orange-50">
                         <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                         <div className="flex-1">
@@ -544,7 +563,7 @@ export default function ConsultantDashboard() {
                         </Badge>
                       </div>
                     ))}
-                  {data.upcomingSessions.filter(session => session.scheduledStart.toDateString() === new Date().toDateString()).length === 0 && (
+                  {data.upcomingSessions.filter((session: any) => session.scheduledStart.toDateString() === new Date().toDateString()).length === 0 && (
                     <div className="text-center py-4">
                       <p className="text-sm text-gray-500">No sessions scheduled for today</p>
                     </div>

@@ -11,7 +11,14 @@ import VideoSession from "@/pages/VideoSession";
 import Progress from "@/pages/Progress";
 import Sessions from "@/pages/Sessions";
 import AdminPanel from "@/pages/AdminPanel";
+import AdminCertificateDesigner from "@/pages/AdminCertificateDesigner";
+import VerifyCertificate from "@/pages/VerifyCertificate";
+import KajabiIntegration from "@/pages/KajabiIntegration";
+import Settings from "@/pages/Settings";
+import Reports from "@/pages/Reports";
+import Profile from "@/pages/Profile";
 import ConsultantDashboard from "@/pages/ConsultantDashboard";
+import ConsultantAvailability from "@/pages/ConsultantAvailability";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -99,39 +106,45 @@ function Router() {
 
   console.log('User role:', userRole, 'Full user:', user); // Debug log
 
+  const routesForRole = (
+    userRole === 'admin' ? [
+      <Route path="/" component={AdminPanel} />,
+      <Route path="/admin" component={AdminPanel} />,
+      <Route path="/admin/certificates/designer" component={AdminCertificateDesigner} />,
+      <Route path="/admin/kajabi" component={KajabiIntegration} />,
+      <Route path="/admin/reports" component={Reports} />,
+      <Route path="/profile" component={Profile} />,
+      <Route path="/settings" component={Settings} />,
+      <Route path="/verify/:code" component={VerifyCertificate} />,
+      <Route path="/video/:sessionId" component={VideoSession} />,
+    ] : userRole === 'consultant' ? [
+      <Route path="/" component={ConsultantDashboard} />,
+      <Route path="/schedule" component={Schedule} />,
+      <Route path="/availability" component={ConsultantAvailability} />,
+      <Route path="/sessions" component={Sessions} />,
+      <Route path="/profile" component={Profile} />,
+      <Route path="/settings" component={Settings} />,
+      <Route path="/video/:sessionId" component={VideoSession} />,
+    ] : userRole === 'student' ? [
+      <Route path="/" component={Dashboard} />,
+      <Route path="/schedule" component={Schedule} />,
+      <Route path="/progress" component={Progress} />,
+      <Route path="/sessions" component={Sessions} />,
+      <Route path="/profile" component={Profile} />,
+      <Route path="/settings" component={Settings} />,
+      <Route path="/verify/:code" component={VerifyCertificate} />,
+      <Route path="/video/:sessionId" component={VideoSession} />,
+    ] : [
+      <Route path="/" component={Auth} />,
+      <Route component={Auth} />,
+    ]
+  );
+
   return (
     <Switch>
-      {userRole === 'admin' ? (
-        <>
-          <Route path="/" component={AdminPanel} />
-          <Route path="/admin" component={AdminPanel} />
-          <Route path="/video/:sessionId" component={VideoSession} />
-          <Route component={NotFound} />
-        </>
-      ) : userRole === 'consultant' ? (
-        <>
-          <Route path="/" component={ConsultantDashboard} />
-          <Route path="/schedule" component={Schedule} />
-          <Route path="/sessions" component={Sessions} />
-          <Route path="/video/:sessionId" component={VideoSession} />
-          <Route component={NotFound} />
-        </>
-      ) : userRole === 'student' ? (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/schedule" component={Schedule} />
-          <Route path="/progress" component={Progress} />
-          <Route path="/sessions" component={Sessions} />
-          <Route path="/video/:sessionId" component={VideoSession} />
-          <Route component={NotFound} />
-        </>
-      ) : (
-        // Fallback for undefined role
-        <>
-          <Route path="/" component={Auth} />
-          <Route component={Auth} />
-        </>
-      )}
+      {routesForRole}
+      {/* Global fallback as the last direct child of Switch */}
+      <Route component={NotFound} />
     </Switch>
   );
 }
