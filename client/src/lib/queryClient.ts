@@ -31,9 +31,21 @@ export async function apiRequest(
     data = c;
   }
 
+  // Get JWT token from localStorage
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = {};
+  
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -49,7 +61,17 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const url = (queryKey[0] as string) || '/';
+    
+    // Get JWT token from localStorage for authenticated requests
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     const res = await fetch(url, {
+      headers,
       credentials: "include",
     });
 
@@ -67,7 +89,8 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 0, // No caching to prevent stale data issues
+      gcTime: 0, // Immediate garbage collection
       retry: false,
     },
     mutations: {
@@ -75,3 +98,9 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Function to clear all query cache (useful after login/logout)
+export function clearQueryCache() {
+  console.log('🧹 Clearing React Query cache...');
+  queryClient.clear();
+}

@@ -35,9 +35,9 @@ export default function Schedule() {
   };
 
   const { data: upcomingSessions, isLoading } = useQuery({
-    queryKey: ['/api/sessions'],
+    queryKey: ['/api/sessions/upcoming'],
     queryFn: async () => {
-      const res = await apiRequest('/api/sessions', 'GET');
+      const res = await apiRequest('/api/sessions/upcoming', 'GET');
       return await res.json();
     }
   });
@@ -58,7 +58,7 @@ export default function Schedule() {
         title: "Session Booked",
         description: "Your consultation session has been successfully scheduled.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions/upcoming'] });
     },
     onError: (error: Error) => {
       toast({

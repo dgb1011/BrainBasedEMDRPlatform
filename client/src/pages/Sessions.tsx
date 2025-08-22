@@ -37,9 +37,9 @@ export default function Sessions() {
   const [evaluationScore, setEvaluationScore] = useState<string>('5');
 
   const { data: sessionsData, isLoading } = useQuery({
-    queryKey: ['/api/sessions'],
+    queryKey: ['/api/students/sessions'],
     queryFn: async () => {
-      const res = await apiRequest('/api/sessions', 'GET');
+      const res = await apiRequest('/api/students/sessions', 'GET');
       return await res.json();
     }
   });
@@ -53,7 +53,7 @@ export default function Sessions() {
         title: "Reschedule Request Sent",
         description: "Your reschedule request has been sent to the consultant.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/students/sessions'] });
     },
     onError: (error: Error) => {
       toast({
@@ -87,7 +87,7 @@ export default function Sessions() {
       });
       setLogDialogOpen(null);
       setReflectionText('');
-      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/students/sessions'] });
     },
     onError: (error: Error) => {
       toast({
@@ -303,7 +303,7 @@ export default function Sessions() {
                                      toast({ title:'Log submitted' });
                                      setLogDialogOpen(null);
                                      setReflectionText('');
-                                     queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+                                     queryClient.invalidateQueries({ queryKey: ['/api/students/sessions'] });
                                    } catch(e:any){
                                      toast({ title:'Failed to submit log', description:e.message, variant:'destructive' });
                                    }
@@ -339,7 +339,7 @@ export default function Sessions() {
                                      toast({ title:'Evaluation submitted' });
                                      setEvalDialogOpen(null);
                                      setEvaluationScore('5');
-                                     queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+                                     queryClient.invalidateQueries({ queryKey: ['/api/students/sessions'] });
                                    } catch(e:any){
                                      toast({ title:'Failed to submit evaluation', description:e.message, variant:'destructive' });
                                    }

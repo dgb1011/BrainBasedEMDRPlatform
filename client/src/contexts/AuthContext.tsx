@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { auth, db } from '@/lib/supabase';
+import { useLocation } from 'wouter';
+import { clearQueryCache } from '@/lib/queryClient';
 
 interface User {
   id: string;
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [, setLocation] = useLocation();
 
   // Deprecated: fetching profile from client-side Supabase requires anon envs.
   // We derive user directly from our server's /api/auth/me response.
@@ -31,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     try {
       const { user: authUser, error } = await auth.getCurrentUser();
+      
       if (error || !authUser) {
         setUser(null);
         return;
@@ -52,45 +56,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('🔄 Starting signIn process...', { email });
+      
+      // Clear previous user state and query cache only
+      console.log('🧹 Clearing previous user state...');
+      setUser(null);
+      clearQueryCache(); // Clear React Query cache
+      
       const { data, error } = await auth.signIn(email, password);
+      console.log('📡 Login response:', { data: data ? 'received' : 'null', error });
       
       if (error) {
+        console.log('❌ Login error:', error);
         return { error: error.message };
       }
 
-      await refreshUser();
+      if (data.user) {
+        console.log('✅ Setting fresh user from login:', data.user);
+        // Set fresh user data
+        const freshUser = {
+          id: data.user.id,
+          email: data.user.email,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          role: data.user.role,
+        };
+        setUser(freshUser);
+        
+        console.log('🧭 Navigating to dashboard with fresh user data...');
+        // Force page reload to ensure clean state
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
+      }
 
       return {};
     } catch (error) {
+      console.log('💥 Login error:', error);
       return { error: 'An unexpected error occurred' };
     }
   };
 
   const signUp = async (email: string, password: string, userData: any) => {
     try {
+      console.log('🔄 Starting signUp process...', { email, userData });
+      
+      // Clear previous user state and query cache only
+      console.log('🧹 Clearing previous user state...');
+      setUser(null);
+      clearQueryCache(); // Clear React Query cache
+      
       const { data, error } = await auth.signUp(email, password, userData);
+      console.log('📡 Registration response:', { data, error });
       
       if (error) {
+        console.log('❌ Registration error:', error);
         return { error: error.message };
       }
 
       if (data.user) {
-        // Set user immediately from registration response
-        setUser({
+        console.log('✅ Setting fresh user from registration:', data.user);
+        // Set fresh user data
+        const freshUser = {
           id: data.user.id,
           email: data.user.email,
           firstName: data.user.firstName,
           lastName: data.user.lastName,
           role: data.user.role,
-        });
+        };
+        setUser(freshUser);
         
-        // Navigate to appropriate dashboard based on role  
-        const path = data.user.role === 'admin' ? '/admin' : '/';
-        window.location.href = path;
+        console.log('🧭 Navigating to dashboard with fresh user data...');
+        // Force page reload to ensure clean state
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500); // Longer delay for registration to show success message
       }
 
       return {};
     } catch (error) {
+      console.log('💥 Registration error:', error);
       return { error: 'An unexpected error occurred' };
     }
   };
@@ -99,13 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await auth.signOut();
       setUser(null);
-      // Force reload to clear any cached state
-      window.location.href = '/';
+      setLocation('/');
     } catch (error) {
       console.error('Error signing out:', error);
       // Even if logout fails on server, clear local state
       setUser(null);
-      window.location.href = '/';
+      setLocation('/');
     }
   };
 
@@ -113,35 +157,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const initializeAuth = async () => {
+      console.log('🚀 Initializing authentication...');
+      
       try {
-        // Listen for auth state changes
-        const unsubscribe = auth.onAuthStateChange(async () => {
-          if (!mounted) return;
-          try {
-            await refreshUser();
-          } catch (error) {
-            console.error('Auth state change error:', error);
-            setUser(null);
-          } finally {
-            setLoading(false);
-          }
-        });
-
-        // Initial load - only if we have a valid session
-        try {
+        // Check if we have a token in localStorage
+        const token = localStorage.getItem('token');
+        console.log('🔍 Token in localStorage:', token ? `${token.substring(0, 20)}...` : 'None');
+        
+        if (token) {
+          // If we have a token, try to get current user
+          console.log('🔄 Refreshing user with existing token...');
           await refreshUser();
-        } catch (error) {
-          // If refreshUser fails, clear any stale state
-          console.log('Initial auth check failed, clearing state');
+        } else {
+          console.log('❌ No token found, user not authenticated');
           setUser(null);
         }
-        if (mounted) setLoading(false);
-
-        return () => unsubscribe();
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('💥 Auth initialization error:', error);
+        // If there's an error with the token, remove only the invalid token
+        console.log('🧹 Removing invalid token...');
+        localStorage.removeItem('token');
+        setUser(null);
+      } finally {
         if (mounted) {
-          setUser(null);
+          console.log('✅ Auth initialization complete');
           setLoading(false);
         }
       }

@@ -59,49 +59,33 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState<Partial<UserProfile>>({});
 
-  // Get comprehensive user profile
+  // Get comprehensive user profile using correct endpoint
   const { data: profile, isLoading } = useQuery({
-    queryKey: ['/api/me/profile'],
+    queryKey: ['/api/users/profile'],
     queryFn: async () => {
-      const res = await apiRequest('/api/me/profile', 'GET');
+      const res = await apiRequest('/api/users/profile', 'GET');
       const json = await res.json();
       
-      let profileInfo = {};
-      
-      // Handle different response structures
-      if (json.user) {
-        profileInfo = {
-          id: json.user.id,
-          email: json.user.email,
-          firstName: json.user.first_name || json.user.firstName,
-          lastName: json.user.last_name || json.user.lastName,
-          role: json.user.role,
-          profileImageUrl: json.user.profile_image_url,
-          createdAt: json.user.created_at || json.user.createdAt,
-          phone: json.profile?.phone,
-          bio: json.profile?.bio,
-          timezone: json.profile?.timezone,
-          specializations: json.profile?.specializations,
-          certifications: json.profile?.certifications,
-          hourlyRate: json.profile?.hourly_rate,
-          totalHours: json.stats?.total_hours || json.profile?.total_hours,
-          totalSessions: json.stats?.total_sessions || json.profile?.total_sessions,
-          averageRating: json.stats?.average_rating || json.profile?.average_rating
-        };
-      } else {
-        // Fallback to auth/me endpoint
-        const authRes = await apiRequest('/api/auth/me', 'GET');
-        const authJson = await authRes.json();
-        profileInfo = {
-          id: authJson?.user?.id,
-          email: authJson?.user?.email,
-          firstName: authJson?.user?.first_name || authJson?.user?.firstName,
-          lastName: authJson?.user?.last_name || authJson?.user?.lastName,
-          role: authJson?.user?.role,
-          profileImageUrl: authJson?.user?.profile_image_url,
-          createdAt: authJson?.user?.created_at || authJson?.user?.createdAt
-        };
-      }
+      // Use the correct response structure from backend
+      const profileInfo = {
+        id: json.user.id,
+        email: json.user.email,
+        firstName: json.user.first_name,
+        lastName: json.user.last_name,
+        role: json.user.role,
+        profileImageUrl: json.user.profile_image_url,
+        createdAt: json.user.created_at,
+        phone: json.profile?.phone,
+        bio: json.profile?.bio,
+        timezone: json.profile?.timezone,
+        // Add role-specific fields if they exist
+        specializations: json.profile?.specializations || [],
+        certifications: json.profile?.certifications || [],
+        hourlyRate: json.profile?.hourly_rate,
+        totalHours: json.profile?.total_verified_hours || 0,
+        totalSessions: json.profile?.total_sessions || 0,
+        averageRating: json.profile?.average_rating
+      };
       
       setProfileData(profileInfo);
       return profileInfo as UserProfile;
@@ -111,7 +95,7 @@ export default function Profile() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (updates: Partial<UserProfile>) => {
-      const endpoint = '/api/me/profile';
+      const endpoint = '/api/users/profile';
       const res = await apiRequest(endpoint, 'PUT', updates);
       return await res.json();
     },
@@ -603,6 +587,7 @@ export default function Profile() {
     </div>
   );
 }
+
 
 
 

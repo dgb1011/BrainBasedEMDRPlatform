@@ -20,6 +20,7 @@ import Profile from "@/pages/Profile";
 import ConsultantDashboard from "@/pages/ConsultantDashboard";
 import ConsultantAvailability from "@/pages/ConsultantAvailability";
 import NotFound from "@/pages/not-found";
+// CacheBuster removed - was causing token deletion issues
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -82,7 +83,6 @@ function Router() {
 
   // If timeout reached, show auth page anyway
   if (timeoutReached) {
-    console.log('Auth timeout reached, showing auth page');
     return (
       <Switch>
         <Route path="/" component={Auth} />
@@ -103,8 +103,6 @@ function Router() {
 
   // Route based on user role
   const userRole = user.role;
-
-  console.log('User role:', userRole, 'Full user:', user); // Debug log
 
   const routesForRole = (
     userRole === 'admin' ? [

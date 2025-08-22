@@ -5,8 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, Loader2, User, GraduationCap, Shield } from 'lucide-react';
+import { Eye, EyeOff, Loader2, User, GraduationCap, Shield, CheckCircle, Mail } from 'lucide-react';
 import { auth } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 interface RegisterFormProps {
   onSuccess: () => void;
@@ -28,6 +29,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -77,14 +79,46 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
       
       if (error) {
         setError(error.message);
+        toast({
+          variant: "destructive",
+          title: "Registration Failed",
+          description: error.message,
+        });
         return;
       }
 
       if (data.user) {
-        onSuccess();
+        // Show beautiful success notification
+        toast({
+          title: "Account Created Successfully! 🎉",
+          description: (
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span>Welcome to BrainBased EMDR, {data.user.firstName}!</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Mail className="h-4 w-4 text-blue-500" />
+                <span>Check your email for welcome instructions</span>
+              </div>
+            </div>
+          ),
+          duration: 5000,
+        });
+        
+        // Small delay to let user see the success message
+        setTimeout(() => {
+          onSuccess();
+        }, 1500);
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+      const errorMessage = 'An unexpected error occurred. Please try again.';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
